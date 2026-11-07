@@ -127,6 +127,8 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
     );
     if (!mounted) return;
     controller.setHighScore(settings.highScore);
+    // 结算面板盖住战场后，战场只剩静止画面，停掉引擎避免继续 60fps 全量重绘。
+    _game?.pauseEngine();
     setState(() {
       _resultVisible = true;
       _newRecord = record;
