@@ -249,6 +249,9 @@ class PowerUp {
 enum ParticleKind { spark, smoke, ring, debris, trail }
 
 /// 爆炸、尾焰与拾取特效粒子。
+///
+/// 字段可变是为了让 [BattleEffects] 复用对象：弹幕密集时每秒钟会生成数百颗
+/// 粒子，直接丢弃会让 GC 频繁介入，[reset] 把回收的粒子重新填好再用。
 class Particle {
   Particle({
     required this.x,
@@ -267,11 +270,34 @@ class Particle {
   double vx;
   double vy;
   double life;
-  final double maxLife;
-  final double size;
-  final int color;
-  final ParticleKind kind;
-  final double drag;
+  double maxLife;
+  double size;
+  int color;
+  ParticleKind kind;
+  double drag;
+
+  void reset({
+    required double x,
+    required double y,
+    required double vx,
+    required double vy,
+    required double life,
+    required double size,
+    required int color,
+    required ParticleKind kind,
+    required double drag,
+  }) {
+    this.x = x;
+    this.y = y;
+    this.vx = vx;
+    this.vy = vy;
+    this.life = life;
+    maxLife = life;
+    this.size = size;
+    this.color = color;
+    this.kind = kind;
+    this.drag = drag;
+  }
 
   bool get dead => life <= 0;
   double get progress => maxLife <= 0 ? 1 : 1 - (life / maxLife).clamp(0, 1);

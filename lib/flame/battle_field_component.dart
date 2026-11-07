@@ -8,6 +8,7 @@ import '../game/battle/battle_types.dart';
 import '../game/logic_rate.dart';
 import '../services/sound_service.dart';
 import 'battle_visuals.dart';
+import 'draw_batches.dart';
 
 /// 战场渲染组件：按固定步长推进逻辑，用 Canvas 绘制星空、战机、弹幕与爆炸。
 ///
@@ -28,21 +29,20 @@ class BattleFieldComponent extends PositionComponent {
   final Paint _fill = Paint();
   final Paint _stroke = Paint()..style = PaintingStyle.stroke;
   final Paint _glow = Paint();
+  final DotBatch _dots = DotBatch();
+  final CapsuleBatch _capsules = CapsuleBatch();
   final Map<String, TextPainter> _textCache = {};
+
+  static const int _whiteArgb = 0xFFFFFFFF;
+  static const int _starStreakArgb = 0xFF7FD8FF;
+  static final int _playerBulletGlowArgb = kPlayerBulletGlow.toARGB32();
+  static final int _playerBulletBodyArgb = kPlayerBulletBody.toARGB32();
 
   Size _backgroundSize = Size.zero;
   Paint? _backgroundPaint;
   Paint? _nebulaTopLeft;
   Paint? _nebulaBottomRight;
 
-  static final RRect _playerBulletBody = RRect.fromRectAndRadius(
-    Rect.fromCenter(center: Offset.zero, width: 6, height: 14),
-    const Radius.circular(3),
-  );
-  static final RRect _playerBulletCore = RRect.fromRectAndRadius(
-    Rect.fromCenter(center: Offset.zero, width: 2.2, height: 8),
-    const Radius.circular(1.1),
-  );
   static final RRect _powerUpBox = RRect.fromRectAndRadius(
     Rect.fromCenter(center: Offset.zero, width: 21, height: 21),
     const Radius.circular(5),
@@ -57,32 +57,31 @@ class BattleFieldComponent extends PositionComponent {
   }
 
   void _flushEvents() {
-    final events = controller.drainEvents().toSet();
+    final events = controller.pendingEvents;
+    if (events.isEmpty) return;
+    var played = 0;
     for (final event in events) {
-      switch (event) {
-        case BattleEvent.shoot:
-          SoundService.play(GameSound.shoot);
-        case BattleEvent.explosion:
-          SoundService.play(GameSound.explosion);
-        case BattleEvent.bigExplosion:
-          SoundService.play(GameSound.bigExplosion);
-        case BattleEvent.powerUp:
-          SoundService.play(GameSound.powerUp);
-        case BattleEvent.playerHit:
-          SoundService.play(GameSound.playerHit);
-        case BattleEvent.shieldBreak:
-          SoundService.play(GameSound.powerUp);
-        case BattleEvent.bomb:
-          SoundService.play(GameSound.bomb);
-        case BattleEvent.waveStart:
-          SoundService.play(GameSound.warning);
-        case BattleEvent.bossAppear:
-          SoundService.play(GameSound.warning);
-        case BattleEvent.gameOver:
-          SoundService.play(GameSound.gameOver);
-      }
+      // 同一步内重复的事件只播一次，用位掩码去重，避免每步新建 Set。
+      final bit = 1 << event.index;
+      if (played & bit != 0) continue;
+      played |= bit;
+      SoundService.play(_soundOf(event));
     }
+    controller.clearEvents();
   }
+
+  static GameSound _soundOf(BattleEvent event) => switch (event) {
+    BattleEvent.shoot => GameSound.shoot,
+    BattleEvent.explosion => GameSound.explosion,
+    BattleEvent.bigExplosion => GameSound.bigExplosion,
+    BattleEvent.powerUp => GameSound.powerUp,
+    BattleEvent.playerHit => GameSound.playerHit,
+    BattleEvent.shieldBreak => GameSound.powerUp,
+    BattleEvent.bomb => GameSound.bomb,
+    BattleEvent.waveStart => GameSound.warning,
+    BattleEvent.bossAppear => GameSound.warning,
+    BattleEvent.gameOver => GameSound.gameOver,
+  };
 
   @override
   void render(Canvas canvas) {
@@ -164,19 +163,20 @@ class BattleFieldComponent extends PositionComponent {
 
   void _drawStars(Canvas canvas) {
     for (final star in controller.stars) {
-      _fill.color = Colors.white.withValues(alpha: star.alpha);
-      canvas.drawCircle(Offset(star.x, star.y), star.size, _fill);
+      _dots.add(_whiteArgb, star.x, star.y, star.size, star.alpha);
       if (star.speed > 62) {
-        _glow.color = const Color(0xFF7FD8FF)
-            .withValues(alpha: star.alpha * 0.5);
-        _glow.strokeWidth = star.size * 0.9;
-        canvas.drawLine(
-          Offset(star.x, star.y - 7),
-          Offset(star.x, star.y),
-          _glow,
+        _capsules.add(
+          _starStreakArgb,
+          star.x,
+          star.y - 3.5,
+          3.5,
+          star.size * 0.9,
+          star.alpha * 0.5,
         );
       }
     }
+    _capsules.flush(canvas);
+    _dots.flush(canvas);
   }
 
   // ------------------------------------------------------------ 玩家
@@ -335,32 +335,42 @@ class BattleFieldComponent extends PositionComponent {
   // ------------------------------------------------------------ 弹幕
 
   void _drawBullets(Canvas canvas) {
+    // 玩家弹：辉光 → 弹体 → 弹芯，三层各自合并成一次绘制。
     for (final bullet in controller.playerBullets) {
-      canvas.save();
-      canvas.translate(bullet.x, bullet.y);
-      _glow.color = kPlayerBulletGlow.withValues(alpha: 0.28);
-      canvas.drawCircle(Offset.zero, 8, _glow);
-      _fill.color = kPlayerBulletBody;
-      canvas.drawRRect(_playerBulletBody, _fill);
-      _fill.color = Colors.white;
-      canvas.drawRRect(_playerBulletCore, _fill);
-      canvas.restore();
+      _dots.add(_playerBulletGlowArgb, bullet.x, bullet.y, 8, 0.28);
     }
+    _dots.flush(canvas);
+    for (final bullet in controller.playerBullets) {
+      _capsules.add(_playerBulletBodyArgb, bullet.x, bullet.y, 4, 6, 1);
+      _capsules.add(_whiteArgb, bullet.x, bullet.y, 2.9, 2.2, 1);
+    }
+    _capsules.flush(canvas);
+
+    // 敌弹：辉光、弹体、弹芯同样按颜色分桶批量绘制。
     for (final bullet in controller.enemyBullets) {
-      final color =
-          kEnemyBulletColors[bullet.kind] ??
-          kEnemyBulletColors[BulletKind.boss]!;
-      _glow.color = color.withValues(alpha: 0.26);
-      canvas.drawCircle(Offset(bullet.x, bullet.y), bullet.radius * 2.4, _glow);
-      _fill.color = color;
-      canvas.drawCircle(Offset(bullet.x, bullet.y), bullet.radius, _fill);
-      _fill.color = Colors.white.withValues(alpha: 0.85);
-      canvas.drawCircle(
-        Offset(bullet.x, bullet.y),
-        bullet.radius * 0.42,
-        _fill,
+      _dots.add(
+        enemyBulletArgb(bullet.kind),
+        bullet.x,
+        bullet.y,
+        bullet.radius * 2.4,
+        0.26,
       );
     }
+    _dots.flush(canvas);
+    for (final bullet in controller.enemyBullets) {
+      _dots.add(
+        enemyBulletArgb(bullet.kind),
+        bullet.x,
+        bullet.y,
+        bullet.radius,
+        1,
+      );
+    }
+    _dots.flush(canvas);
+    for (final bullet in controller.enemyBullets) {
+      _dots.add(_whiteArgb, bullet.x, bullet.y, bullet.radius * 0.42, 0.85);
+    }
+    _dots.flush(canvas);
   }
 
   // ------------------------------------------------------------ 补给
@@ -400,26 +410,27 @@ class BattleFieldComponent extends PositionComponent {
   void _drawParticles(Canvas canvas) {
     for (final particle in controller.particles) {
       final fade = (1 - particle.progress).clamp(0.0, 1.0);
-      final color = Color(particle.color).withValues(alpha: fade);
       switch (particle.kind) {
         case ParticleKind.spark:
         case ParticleKind.trail:
-          _fill.color = color;
-          canvas.drawCircle(
-            Offset(particle.x, particle.y),
+          _dots.add(
+            particle.color,
+            particle.x,
+            particle.y,
             particle.size * (0.5 + fade * 0.5),
-            _fill,
+            fade,
           );
         case ParticleKind.smoke:
-          _fill.color = color.withValues(alpha: fade * 0.4);
-          canvas.drawCircle(
-            Offset(particle.x, particle.y),
+          _dots.add(
+            particle.color,
+            particle.x,
+            particle.y,
             particle.size * (1 + particle.progress * 1.6),
-            _fill,
+            fade * 0.4,
           );
         case ParticleKind.ring:
           _stroke
-            ..color = color.withValues(alpha: fade * 0.8)
+            ..color = Color(particle.color).withValues(alpha: fade * 0.8)
             ..strokeWidth = 1.6;
           canvas.drawCircle(
             Offset(particle.x, particle.y),
@@ -427,7 +438,7 @@ class BattleFieldComponent extends PositionComponent {
             _stroke,
           );
         case ParticleKind.debris:
-          _fill.color = color;
+          _fill.color = Color(particle.color).withValues(alpha: fade);
           canvas.save();
           canvas.translate(particle.x, particle.y);
           canvas.rotate(particle.progress * 6);
@@ -442,6 +453,7 @@ class BattleFieldComponent extends PositionComponent {
           canvas.restore();
       }
     }
+    _dots.flush(canvas);
   }
 
   void _drawPopups(Canvas canvas) {
@@ -466,7 +478,10 @@ class BattleFieldComponent extends PositionComponent {
     final key = '$text|$size|${color.toARGB32()}|${weight.value}';
     final cached = _textCache[key];
     if (cached != null) return cached;
-    if (_textCache.length > 90) _textCache.clear();
+    if (_textCache.length > 90) {
+      // 只淘汰最早的一条，避免缓存满了就整体清空导致下一帧集中重建。
+      _textCache.remove(_textCache.keys.first);
+    }
     final painter = TextPainter(
       text: TextSpan(
         text: text,

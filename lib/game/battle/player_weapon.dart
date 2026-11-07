@@ -41,10 +41,17 @@ const List<List<PlayerShot>> kPlayerWeaponPatterns = [
 
 /// 按当前火力等级生成一帧的玩家弹道。
 List<Bullet> buildPlayerShots(Player player) {
+  final shots = <Bullet>[];
+  appendPlayerShots(player, shots);
+  return shots;
+}
+
+/// 按当前火力等级把弹道追加到已有列表，战斗循环里避免每帧中转列表。
+void appendPlayerShots(Player player, List<Bullet> out) {
   final level = player.weaponLevel.clamp(1, Player.maxWeaponLevel);
   final muzzleY = player.y - 16;
-  return [
-    for (final shot in kPlayerWeaponPatterns[level])
+  for (final shot in kPlayerWeaponPatterns[level]) {
+    out.add(
       Bullet(
         x: player.x + shot.offsetX,
         y: muzzleY,
@@ -54,5 +61,6 @@ List<Bullet> buildPlayerShots(Player player) {
         damage: 1,
         fromPlayer: true,
       ),
-  ];
+    );
+  }
 }

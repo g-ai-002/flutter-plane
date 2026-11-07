@@ -6,12 +6,16 @@ import 'battle_types.dart';
 /// 战场特效：粒子、飘字与星空。
 ///
 /// 与战斗判定解耦，只负责视觉元素的生命周期与生成参数，便于单独测试与调优。
+/// 粒子数量有上限并回收复用，密集弹幕下不会持续制造垃圾对象。
 class BattleEffects {
   BattleEffects(this._rng, this._starRng);
 
   static const int maxTrailParticles = 420;
   static const int maxParticles = 460;
   static const int maxPopups = 60;
+
+  /// 回收池上限：与同屏上限同量级即可，再多只是白占内存。
+  static const int maxPooledParticles = 480;
 
   final math.Random _rng;
   final math.Random _starRng;
@@ -20,7 +24,13 @@ class BattleEffects {
   final List<ScorePopup> popups = [];
   final List<Star> stars = [];
 
+  /// 已消失但仍可复用的粒子对象。
+  final List<Particle> _pool = [];
+
   void clear() {
+    for (final particle in particles) {
+      _recycle(particle);
+    }
     particles.clear();
     popups.clear();
   }
@@ -42,15 +52,30 @@ class BattleEffects {
   }
 
   void update(double dt) {
-    for (final particle in particles) {
+    // 阻力系数只有几种，按系数缓存一次衰减因子，避免每颗粒子都调用 exp。
+    final damping = <int, double>{};
+    double dampingOf(double drag) {
+      final key = (drag * 100).round();
+      return damping[key] ??= math.exp(-drag * dt);
+    }
+
+    // 原地压缩：把存活的粒子前移，死掉的直接回收，避免两次遍历与 removeWhere。
+    var write = 0;
+    for (var read = 0; read < particles.length; read++) {
+      final particle = particles[read];
       particle.life -= dt;
-      final damping = math.exp(-particle.drag * dt);
-      particle.vx *= damping;
-      particle.vy *= damping;
+      if (particle.dead) {
+        _recycle(particle);
+        continue;
+      }
+      final factor = dampingOf(particle.drag);
+      particle.vx *= factor;
+      particle.vy *= factor;
       particle.x += particle.vx * dt;
       particle.y += particle.vy * dt;
+      particles[write++] = particle;
     }
-    particles.removeWhere((particle) => particle.dead);
+    if (write < particles.length) particles.length = write;
 
     for (final popup in popups) {
       popup.life -= dt;
@@ -72,7 +97,7 @@ class BattleEffects {
   /// 战机尾焰：持续小颗粒，护盾展开时换成蓝色。
   void addPlayerTrail(Offset position, {required bool shielded}) {
     particles.add(
-      Particle(
+      _acquire(
         x: position.dx + (_rng.nextDouble() - 0.5) * 6,
         y: position.dy + 14,
         vx: (_rng.nextDouble() - 0.5) * 14,
@@ -153,7 +178,7 @@ class BattleEffects {
       final angle = _rng.nextDouble() * math.pi * 2;
       final velocity = speed * (0.3 + _rng.nextDouble() * 0.9);
       particles.add(
-        Particle(
+        _acquire(
           x: position.dx,
           y: position.dy,
           vx: math.cos(angle) * velocity,
@@ -169,9 +194,57 @@ class BattleEffects {
     _trim(maxParticles);
   }
 
-  void _trim(int limit) {
-    if (particles.length > limit) {
-      particles.removeRange(0, particles.length - limit);
+  /// 取一颗粒子：优先复用回收池里的对象，池空时才新建。
+  Particle _acquire({
+    required double x,
+    required double y,
+    required double vx,
+    required double vy,
+    required double life,
+    required double size,
+    required int color,
+    required ParticleKind kind,
+    required double drag,
+  }) {
+    if (_pool.isEmpty) {
+      return Particle(
+        x: x,
+        y: y,
+        vx: vx,
+        vy: vy,
+        life: life,
+        size: size,
+        color: color,
+        kind: kind,
+        drag: drag,
+      );
     }
+    return _pool.removeLast()..reset(
+      x: x,
+      y: y,
+      vx: vx,
+      vy: vy,
+      life: life,
+      size: size,
+      color: color,
+      kind: kind,
+      drag: drag,
+    );
   }
+
+  void _recycle(Particle particle) {
+    if (_pool.length < maxPooledParticles) _pool.add(particle);
+  }
+
+  void _trim(int limit) {
+    final overflow = particles.length - limit;
+    if (overflow <= 0) return;
+    for (var i = 0; i < overflow; i++) {
+      _recycle(particles[i]);
+    }
+    particles.removeRange(0, overflow);
+  }
+
+  /// 回收池当前大小，供测试校验复用是否生效。
+  int get pooledParticles => _pool.length;
 }

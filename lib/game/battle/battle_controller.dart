@@ -34,6 +34,9 @@ class BattleController extends ChangeNotifier {
 
   static const List<String> _bossNames = ['赤蝎母舰', '雷霆要塞', '虚空旗舰', '终焉之核'];
 
+  /// 开场操作提示的持续时间，与 HUD 的淡出时长保持一致。
+  static const double hintDuration = 6;
+
   final int _seed;
   final math.Random _rng;
   final math.Random _starRng;
@@ -57,6 +60,7 @@ class BattleController extends ChangeNotifier {
   int _runs = 0;
   double _gapTimer = 1.4;
   double _hudTimer = 0;
+  int _lastHudSignature = 0;
   double _trailTimer = 0;
   double _shootCooldown = 0;
   int _dropPity = 0;
@@ -125,6 +129,7 @@ class BattleController extends ChangeNotifier {
     survived = Duration.zero;
     _gapTimer = 1.2;
     _hudTimer = 0;
+    _lastHudSignature = 0;
     _trailTimer = 0;
     _shootCooldown = 0;
     _dropPity = 0;
@@ -210,12 +215,10 @@ class BattleController extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<BattleEvent> drainEvents() {
-    if (_events.isEmpty) return const [];
-    final copy = List<BattleEvent>.of(_events);
-    _events.clear();
-    return copy;
-  }
+  /// 本步累积的事件（不复制），渲染层消费后调用 [clearEvents]。
+  List<BattleEvent> get pendingEvents => _events;
+
+  void clearEvents() => _events.clear();
 
   void update(double dt) {
     if (dt <= 0) return;
@@ -243,11 +246,31 @@ class BattleController extends ChangeNotifier {
     shake = shake < 0.05 ? 0 : shake * math.exp(-5.2 * dt);
     flash = math.max(0, flash - 2.4 * dt);
     _hudTimer += dt;
-    if (_hudTimer >= 0.1) {
-      _hudTimer = 0;
-      notifyListeners();
+    if (_hudTimer < 0.1) return;
+    _hudTimer = 0;
+    // 开场提示需要连续淡出、Boss 血条会随命中变化，这两种情况保持 10Hz 刷新；
+    // 其余时间只在 HUD 可见数值真的变化时才通知，避免整棵界面空转重建。
+    final signature = _hudSignature();
+    if (elapsed >= hintDuration &&
+        boss == null &&
+        signature == _lastHudSignature) {
+      return;
     }
+    _lastHudSignature = signature;
+    notifyListeners();
   }
+
+  /// HUD 上可见数值的指纹，用于跳过没有变化的刷新。
+  int _hudSignature() => Object.hash(
+    score,
+    wave,
+    player.lives,
+    player.bombs,
+    player.weaponLevel,
+    combo,
+    multiplier,
+    phase,
+  );
 
   // ---------------------------------------------------------------- 玩家
 
@@ -275,7 +298,7 @@ class BattleController extends ChangeNotifier {
     p.fireCooldown -= dt;
     if (p.fireCooldown <= 0) {
       p.fireCooldown = kBaseFireInterval - 0.008 * (p.weaponLevel - 1);
-      playerBullets.addAll(buildPlayerShots(p));
+      appendPlayerShots(p, playerBullets);
       if (_shootCooldown <= 0) {
         _shootCooldown = 0.12;
         _emit(BattleEvent.shoot);
@@ -556,26 +579,40 @@ class BattleController extends ChangeNotifier {
   // ---------------------------------------------------------------- 碰撞
 
   void _collide(double dt) {
-    final playerCenter = Offset(player.x, player.y);
+    final px = player.x;
+    final py = player.y;
     for (final bullet in playerBullets) {
       if (bullet.dead) continue;
-      final to = Offset(bullet.x, bullet.y);
-      final from = sweepStart(
-        position: to,
-        velocity: Offset(bullet.vx, bullet.vy),
-        dt: dt,
-      );
+      final toX = bullet.x;
+      final toY = bullet.y;
+      final fromX = toX - bullet.vx * dt;
+      final fromY = toY - bullet.vy * dt;
+      final minX = math.min(fromX, toX);
+      final maxX = math.max(fromX, toX);
+      final minY = math.min(fromY, toY);
+      final maxY = math.max(fromY, toY);
       for (final enemy in enemies) {
         if (enemy.dead) continue;
-        if (segmentHitsCircle(
-          center: Offset(enemy.x, enemy.y),
-          radius: enemy.radius + bullet.radius,
-          from: from,
-          to: to,
+        final reach = enemy.radius + bullet.radius;
+        // 包围盒先排除远处的敌机，密集弹幕下省掉大部分扫掠计算。
+        if (enemy.x + reach < minX ||
+            enemy.x - reach > maxX ||
+            enemy.y + reach < minY ||
+            enemy.y - reach > maxY) {
+          continue;
+        }
+        if (segmentHitsCircleXY(
+          centerX: enemy.x,
+          centerY: enemy.y,
+          radius: reach,
+          fromX: fromX,
+          fromY: fromY,
+          toX: toX,
+          toY: toY,
         )) {
           bullet.dead = true;
           _damageEnemy(enemy, bullet.damage);
-          _effects.spark(to, 0xFFB7F4FF);
+          _effects.spark(Offset(toX, toY), 0xFFB7F4FF);
           break;
         }
       }
@@ -583,17 +620,25 @@ class BattleController extends ChangeNotifier {
     if (player.alive) {
       for (final bullet in enemyBullets) {
         if (bullet.dead) continue;
-        final to = Offset(bullet.x, bullet.y);
-        final from = sweepStart(
-          position: to,
-          velocity: Offset(bullet.vx, bullet.vy),
-          dt: dt,
-        );
-        if (segmentHitsCircle(
-          center: playerCenter,
-          radius: Player.radius + bullet.radius,
-          from: from,
-          to: to,
+        final toX = bullet.x;
+        final toY = bullet.y;
+        final fromX = toX - bullet.vx * dt;
+        final fromY = toY - bullet.vy * dt;
+        final reach = Player.radius + bullet.radius;
+        if (math.min(fromX, toX) > px + reach ||
+            math.max(fromX, toX) < px - reach ||
+            math.min(fromY, toY) > py + reach ||
+            math.max(fromY, toY) < py - reach) {
+          continue;
+        }
+        if (segmentHitsCircleXY(
+          centerX: px,
+          centerY: py,
+          radius: reach,
+          fromX: fromX,
+          fromY: fromY,
+          toX: toX,
+          toY: toY,
         )) {
           bullet.dead = true;
           _hitPlayer();
@@ -603,10 +648,12 @@ class BattleController extends ChangeNotifier {
     }
     for (final enemy in enemies) {
       if (enemy.dead || !player.alive) continue;
-      if (circlesOverlap(
-        Offset(enemy.x, enemy.y),
+      if (circlesOverlapXY(
+        enemy.x,
+        enemy.y,
         enemy.radius,
-        playerCenter,
+        px,
+        py,
         Player.radius,
       )) {
         _damageEnemy(enemy, enemy.isBoss ? 30 : 24);
@@ -615,10 +662,12 @@ class BattleController extends ChangeNotifier {
     }
     for (final item in powerUps) {
       if (item.dead) continue;
-      if (circlesOverlap(
-        Offset(item.x, item.y),
+      if (circlesOverlapXY(
+        item.x,
+        item.y,
         PowerUp.radius + 4,
-        playerCenter,
+        px,
+        py,
         Player.radius,
       )) {
         _collectPowerUp(item);

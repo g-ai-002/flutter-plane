@@ -52,5 +52,17 @@ void main() {
         ..weaponLevel = Player.maxWeaponLevel + 3;
       expect(buildPlayerShots(high), hasLength(7));
     });
+
+    test('追加弹道直接写入目标列表', () {
+      final player = Player(x: 200, y: 600)..weaponLevel = 2;
+      final out = <Bullet>[];
+
+      appendPlayerShots(player, out);
+      appendPlayerShots(player, out);
+
+      expect(out, hasLength(4));
+      expect(out.every((bullet) => bullet.fromPlayer), isTrue);
+      expect(out.map((bullet) => bullet.y), everyElement(584));
+    });
   });
 }

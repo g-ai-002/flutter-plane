@@ -150,6 +150,16 @@ const Map<int, Color> kEnemyBulletColors = {
   BulletKind.boss: Color(0xFFFFD54F),
 };
 
+/// 敌弹配色的 ARGB 整数表：批绘制直接取整数，避免逐帧构造 Color。
+final Map<int, int> kEnemyBulletArgb = {
+  for (final entry in kEnemyBulletColors.entries)
+    entry.key: entry.value.toARGB32(),
+};
+
+/// 未知弹种回退到 Boss 弹配色，与逐颗绘制时的行为一致。
+int enemyBulletArgb(int kind) =>
+    kEnemyBulletArgb[kind] ?? kEnemyBulletArgb[BulletKind.boss]!;
+
 const Map<PowerUpKind, Color> kPowerUpColors = {
   PowerUpKind.weapon: Color(0xFFFFB347),
   PowerUpKind.shield: Color(0xFF7FD8FF),

@@ -129,6 +129,44 @@ void main() {
       controller.update(1 / 60);
       expect(enemy.hp, lessThan(enemy.maxHp));
     });
+
+    test('包围盒相交但线段未命中时不会误伤', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      final enemy = Enemy(
+        kind: EnemyKind.scout,
+        pattern: EnemyPattern.straight,
+        x: 200,
+        y: 200,
+        difficulty: 1,
+      );
+      controller.enemies.add(enemy);
+      // 扫掠线段的包围盒覆盖敌机，但线段本身与敌机圆的最近距离约 14 > 半径 11+3。
+      controller.playerBullets.add(
+        Bullet(
+          x: 230,
+          y: 150,
+          vx: 5400,
+          vy: -5400,
+          radius: 3,
+          damage: 1,
+          fromPlayer: true,
+        ),
+      );
+      controller.update(1 / 60);
+      expect(enemy.hp, enemy.maxHp);
+    });
+
+    test('战斗事件按帧累积，消费后清空', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      advance(controller, 0.2);
+
+      expect(controller.pendingEvents, contains(BattleEvent.shoot));
+      controller.clearEvents();
+
+      expect(controller.pendingEvents, isEmpty);
+    });
   });
 
   group('补给与炸弹', () {
@@ -340,6 +378,36 @@ void main() {
       expect(controller.size.height, 900);
       expect(controller.player.y, lessThanOrEqualTo(900 - 26));
       expect(controller.stars, isNotEmpty);
+    });
+  });
+
+  group('HUD 刷新', () {
+    test('开场提示结束后，数值没变化就不再按 10Hz 通知', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+      // 停止开火与拾取，让得分、生命、火力保持不变。
+      controller.player.alive = false;
+
+      advance(controller, 7);
+      notifications = 0;
+      advance(controller, 1);
+
+      // 旧的实现 1 秒固定通知 10 次；现在只有波次推进等真实变化才通知。
+      expect(notifications, lessThanOrEqualTo(3));
+    });
+
+    test('开场 6 秒内提示需要持续淡出，保持刷新', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+      controller.player.alive = false;
+
+      advance(controller, 1);
+
+      expect(notifications, greaterThanOrEqualTo(8));
     });
   });
 }

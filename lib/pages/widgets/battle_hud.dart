@@ -499,10 +499,14 @@ class BattleHud extends StatelessWidget {
   }
 
   Widget _hint() {
-    if (controller.elapsed > 6 || controller.phase != BattlePhase.playing) {
+    if (controller.elapsed >= BattleController.hintDuration ||
+        controller.phase != BattlePhase.playing) {
       return const SizedBox.shrink();
     }
-    final fade = (1 - controller.elapsed / 6).clamp(0.0, 1.0);
+    final fade = (1 - controller.elapsed / BattleController.hintDuration).clamp(
+      0.0,
+      1.0,
+    );
     return Positioned(
       left: 0,
       right: 0,

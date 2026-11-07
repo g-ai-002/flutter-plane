@@ -74,5 +74,38 @@ void main() {
       expect(start.dx, 200);
       expect(start.dy, closeTo(110, 0.0001));
     });
+
+    test('裸坐标版本与 Offset 版本结果一致', () {
+      const cases = [
+        (Offset(200, 200), 11.0, Offset(200, 240), Offset(200, 160)),
+        (Offset(200, 200), 11.0, Offset(230, 240), Offset(230, 160)),
+        (Offset(100, 100), 5.0, Offset(103, 100), Offset(103, 100)),
+        (Offset(50, 400), 8.0, Offset(80, 380), Offset(20, 460)),
+      ];
+      for (final (center, radius, from, to) in cases) {
+        expect(
+          segmentHitsCircleXY(
+            centerX: center.dx,
+            centerY: center.dy,
+            radius: radius,
+            fromX: from.dx,
+            fromY: from.dy,
+            toX: to.dx,
+            toY: to.dy,
+          ),
+          segmentHitsCircle(center: center, radius: radius, from: from, to: to),
+        );
+      }
+    });
+
+    test('裸坐标圆形重叠与判定顺序无关', () {
+      expect(circlesOverlapXY(0, 0, 10, 15, 0, 5), isTrue);
+      expect(circlesOverlapXY(15, 0, 5, 0, 0, 10), isTrue);
+      expect(circlesOverlapXY(0, 0, 10, 15.1, 0, 5), isFalse);
+      expect(
+        circlesOverlapXY(0, 0, 10, 15, 0, 5),
+        circlesOverlap(const Offset(0, 0), 10, const Offset(15, 0), 5),
+      );
+    });
   });
 }

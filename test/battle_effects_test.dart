@@ -99,5 +99,85 @@ void main() {
       expect(effects.popups, isEmpty);
       expect(effects.stars, isNotEmpty);
     });
+
+    test('死亡粒子进入回收池并被后续爆炸复用', () {
+      final effects = buildEffects();
+      effects.burst(
+        const Offset(200, 300),
+        count: 30,
+        color: 0xFFFF5252,
+        life: 0.1,
+      );
+      final first = List<Particle>.of(effects.particles);
+
+      effects.update(0.2);
+      expect(effects.particles, isEmpty);
+      expect(effects.pooledParticles, 30);
+
+      effects.burst(
+        const Offset(120, 260),
+        count: 30,
+        color: 0xFF7FD8FF,
+        life: 0.4,
+      );
+      expect(effects.particles.length, 30);
+      // 池里的对象被原地重置后重新上场，不产生新的对象。
+      expect(effects.particles.any(first.contains), isTrue);
+      expect(effects.pooledParticles, 0);
+      expect(effects.particles.first.color, 0xFF7FD8FF);
+    });
+
+    test('回收池容量有限，超量粒子不会被无限缓存', () {
+      final effects = buildEffects();
+      for (var i = 0; i < 40; i++) {
+        effects.burst(
+          const Offset(200, 300),
+          count: 20,
+          color: 0xFFFFFFFF,
+          life: 0.1,
+        );
+      }
+      effects.update(0.2);
+      expect(effects.particles, isEmpty);
+      expect(
+        effects.pooledParticles,
+        lessThanOrEqualTo(BattleEffects.maxPooledParticles),
+      );
+    });
+
+    test('同一步的粒子衰减保持一致，与阻力系数无关地更新位置', () {
+      final effects = buildEffects();
+      effects.particles.addAll([
+        Particle(
+          x: 100,
+          y: 100,
+          vx: 100,
+          vy: 0,
+          life: 1,
+          size: 2,
+          color: 0xFFFFFFFF,
+          drag: 2.2,
+        ),
+        Particle(
+          x: 200,
+          y: 100,
+          vx: 100,
+          vy: 0,
+          life: 1,
+          size: 5,
+          color: 0xFF2A3358,
+          kind: ParticleKind.smoke,
+          drag: 1.1,
+        ),
+      ]);
+
+      effects.update(0.1);
+      final spark = effects.particles[0];
+      final smoke = effects.particles[1];
+      expect(spark.vx, closeTo(100 * math.exp(-2.2 * 0.1), 1e-9));
+      expect(smoke.vx, closeTo(100 * math.exp(-1.1 * 0.1), 1e-9));
+      expect(spark.x, greaterThan(100));
+      expect(smoke.x, greaterThan(spark.x));
+    });
   });
 }
