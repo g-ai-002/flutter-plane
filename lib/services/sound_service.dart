@@ -263,14 +263,16 @@ class SoundService {
       }
     }
     if (!hapticsEnabled) return;
-    final haptic = switch (sound) {
-      GameSound.shoot || GameSound.ui => HapticFeedback.selectionClick,
+    // 射击与按钮点击每秒要触发数次，为它们发平台震动调用只会带来无效的
+    // 通道开销与持续震感，震动只保留给真正的战斗反馈。
+    final Future<void> Function()? haptic = switch (sound) {
+      GameSound.shoot || GameSound.ui => null,
       GameSound.warning => HapticFeedback.mediumImpact,
       GameSound.explosion || GameSound.powerUp => HapticFeedback.lightImpact,
       GameSound.playerHit || GameSound.bomb => HapticFeedback.heavyImpact,
       GameSound.bigExplosion || GameSound.gameOver => HapticFeedback.vibrate,
     };
-    haptic();
+    haptic?.call();
   }
 
   static Future<void> _play(GameSound sound) async {
