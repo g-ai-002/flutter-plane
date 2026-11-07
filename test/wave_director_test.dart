@@ -122,5 +122,27 @@ void main() {
         BossVariant.wraith,
       ]);
     });
+
+    test('updateInto 把到期请求写入调用方列表，队列空时不改动', () {
+      final director = WaveDirector(seed: 31)..startNextWave();
+      final out = <SpawnRequest>[];
+      for (var i = 0; i < 300 && director.spawning; i++) {
+        director.updateInto(0.1, out);
+      }
+      expect(out, isNotEmpty);
+      expect(out.length, greaterThan(3));
+      expect(director.spawning, isFalse);
+
+      // 生成队列已清空：调用方列表原样保留，不会被清空或继续追写。
+      final kept = <SpawnRequest>[
+        const SpawnRequest(
+          kind: EnemyKind.scout,
+          x: 100,
+          pattern: EnemyPattern.straight,
+        ),
+      ];
+      director.updateInto(1, kept);
+      expect(kept, hasLength(1));
+    });
   });
 }

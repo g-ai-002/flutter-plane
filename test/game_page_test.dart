@@ -1,7 +1,10 @@
+import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sky_fighter/flame/sky_fighter_game.dart';
+import 'package:sky_fighter/game/battle/battle_types.dart';
 import 'package:sky_fighter/pages/game_page.dart';
 import 'package:sky_fighter/providers/settings_provider.dart';
 import 'package:sky_fighter/services/storage_service.dart';
@@ -60,5 +63,43 @@ void main() {
 
     expect(find.text('战斗暂停'), findsNothing);
     expect(find.text('得分'), findsOneWidget);
+  });
+
+  testWidgets('结算面板出现后停止引擎重绘，重开时恢复', (tester) async {
+    await pumpGame(tester);
+    final game =
+        tester
+                .widget<GameWidget<SkyFighterGame>>(
+                  find.byType(GameWidget<SkyFighterGame>),
+                )
+                .game!;
+    final controller = game.controller;
+    controller.player
+      ..lives = 1
+      ..invuln = 0;
+    controller.enemyBullets.add(
+      Bullet(
+        x: controller.player.x,
+        y: controller.player.y,
+        vx: 0,
+        vy: 0,
+        radius: 4.2,
+        damage: 1,
+        fromPlayer: false,
+      ),
+    );
+
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(controller.phase, BattlePhase.gameOver);
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pump();
+
+    expect(find.text('战机坠毁'), findsOneWidget);
+    expect(game.paused, isTrue);
+
+    await tester.tap(find.text('再来一局'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(game.paused, isFalse);
+    expect(controller.phase, BattlePhase.playing);
   });
 }

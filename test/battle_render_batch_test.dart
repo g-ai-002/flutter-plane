@@ -212,4 +212,108 @@ void main() {
     expect(canvas.rawPointsCalls, lessThanOrEqualTo(40));
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('飘字与补给的文字、颜色缓存逐帧复用', (tester) async {
+    final controller = BattleController(size: const Size(400, 700), seed: 17)
+      ..start();
+    addTearDown(controller.dispose);
+    controller.player.alive = false;
+    controller.stars.clear();
+    controller.enemies.clear();
+    controller.playerBullets.clear();
+    controller.enemyBullets.clear();
+    controller.particles.clear();
+    for (var i = 0; i < 6; i++) {
+      controller.popups.add(
+        ScorePopup(x: 60 + i * 20, y: 300, text: '+${i * 10}'),
+      );
+    }
+    for (final kind in PowerUpKind.values) {
+      controller.powerUps.add(PowerUp(x: 40, y: 200, kind: kind));
+    }
+
+    final component = BattleFieldComponent(
+      controller: controller,
+      logicRate: LogicRate.hz60,
+    );
+    component.size = Vector2(400, 700);
+    addTearDown(component.onRemove);
+    final canvas = CountingCanvas();
+
+    component.render(canvas);
+    final textPainters = component.cachedTextPainters;
+    final colors = component.cachedColors;
+    expect(textPainters, greaterThan(0));
+    expect(colors, greaterThan(0));
+
+    for (var i = 0; i < 6; i++) {
+      component.render(canvas);
+    }
+    // 同一批飘字与补给连续绘制，缓存命中后不再新增排版与颜色。
+    expect(component.cachedTextPainters, textPainters);
+    expect(component.cachedColors, colors);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('飘字的四档淡出最多只缓存四种颜色', (tester) async {
+    final controller = BattleController(size: const Size(400, 700), seed: 19)
+      ..start();
+    addTearDown(controller.dispose);
+    controller.player.alive = false;
+    controller.stars.clear();
+    controller.enemies.clear();
+    controller.playerBullets.clear();
+    controller.enemyBullets.clear();
+    controller.particles.clear();
+    controller.powerUps.clear();
+    final popup = ScorePopup(x: 200, y: 320, text: '+200');
+    controller.popups.add(popup);
+
+    final component = BattleFieldComponent(
+      controller: controller,
+      logicRate: LogicRate.hz60,
+    );
+    component.size = Vector2(400, 700);
+    addTearDown(component.onRemove);
+    final canvas = CountingCanvas();
+
+    for (final life in [0.8, 0.6, 0.4, 0.2, 0.8, 0.6, 0.4, 0.2]) {
+      popup.life = life;
+      component.render(canvas);
+    }
+
+    expect(component.cachedColors, 4);
+    expect(component.cachedTextPainters, 4);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('屏幕外的补给不再进入绘制', (tester) async {
+    final controller = BattleController(size: const Size(400, 700), seed: 23)
+      ..start();
+    addTearDown(controller.dispose);
+    controller.player.alive = false;
+    controller.stars.clear();
+    controller.enemies.clear();
+    controller.playerBullets.clear();
+    controller.enemyBullets.clear();
+    controller.particles.clear();
+    controller.popups.clear();
+    for (var i = 0; i < 4; i++) {
+      controller.powerUps.add(
+        PowerUp(x: 460 + 60.0 * i, y: 200, kind: PowerUpKind.weapon),
+      );
+    }
+
+    final component = BattleFieldComponent(
+      controller: controller,
+      logicRate: LogicRate.hz60,
+    );
+    component.size = Vector2(400, 700);
+    addTearDown(component.onRemove);
+    final canvas = CountingCanvas();
+    component.render(canvas);
+
+    expect(canvas.circleCalls, 0);
+    expect(tester.takeException(), isNull);
+  });
 }
