@@ -256,58 +256,32 @@ class BattleFieldComponent extends PositionComponent {
     for (final enemy in controller.enemies) {
       if (enemy.dead) continue;
       final visual = visualFor(enemy);
-      canvas.save();
-      canvas.translate(enemy.x, enemy.y);
       final appear = (enemy.age / 0.28).clamp(0.0, 1.0);
       final pulse = 0.9 + 0.1 * math.sin(enemy.age * 6);
-      final hit = enemy.hitFlash > 0;
-
-      if (enemy.isBoss) {
-        _drawBoss(canvas, enemy, visual, appear, pulse, hit);
-        canvas.restore();
-        continue;
-      }
-
-      _fill.color = (hit ? Colors.white : visual.hull).withValues(
-        alpha: appear,
+      canvas.save();
+      canvas.translate(enemy.x, enemy.y);
+      _drawEnemyBody(
+        canvas,
+        enemy,
+        visual,
+        appear: appear,
+        pulse: pulse,
+        hit: enemy.hitFlash > 0,
       );
-      canvas.drawPath(visual.path, _fill);
-      _stroke
-        ..color = (hit ? Colors.white : visual.trim).withValues(alpha: appear)
-        ..strokeWidth = visual.strokeWidth;
-      canvas.drawPath(visual.path, _stroke);
-
-      // 炮塔（重装堡垒）
-      for (final turret in visual.turrets) {
-        _fill.color = visual.hull.withValues(alpha: appear);
-        canvas.drawCircle(turret, 4.6, _fill);
-        _stroke
-          ..color = visual.trim.withValues(alpha: appear)
-          ..strokeWidth = 1.1;
-        canvas.drawCircle(turret, 4.6, _stroke);
-      }
-
-      // 核心与引擎光
-      _fill.color = visual.core.withValues(alpha: appear * pulse);
-      canvas.drawCircle(
-        Offset(0, visual.coreOffsetY),
-        visual.coreRadius,
-        _fill,
-      );
-      _glow.color = kEnemyEngineGlow.withValues(alpha: appear * 0.8);
-      canvas.drawCircle(Offset(0, enemy.radius * 0.62), 2.4, _glow);
       canvas.restore();
     }
   }
 
-  void _drawBoss(
+  /// 机体绘制：普通敌机与 Boss 共用轮廓、炮塔与核心，只在尺寸和 Boss
+  /// 专属的辉光、受损裂纹上分支。
+  void _drawEnemyBody(
     Canvas canvas,
-    Enemy boss,
-    EnemyVisual visual,
-    double appear,
-    double pulse,
-    bool hit,
-  ) {
+    Enemy enemy,
+    EnemyVisual visual, {
+    required double appear,
+    required double pulse,
+    required bool hit,
+  }) {
     _fill.color = (hit ? Colors.white : visual.hull).withValues(alpha: appear);
     canvas.drawPath(visual.path, _fill);
     _stroke
@@ -315,31 +289,38 @@ class BattleFieldComponent extends PositionComponent {
       ..strokeWidth = visual.strokeWidth;
     canvas.drawPath(visual.path, _stroke);
 
-    // 炮塔：赤蝎双翼炮、利维坦三联炮，配色跟随机体。
-    _fill.color = visual.hull.withValues(alpha: appear);
+    final turretRadius = enemy.isBoss ? 6.5 : 4.6;
+    final turretStroke = enemy.isBoss ? 1.2 : 1.1;
     for (final turret in visual.turrets) {
-      canvas.drawCircle(turret, 6.5, _fill);
+      _fill.color = visual.hull.withValues(alpha: appear);
+      canvas.drawCircle(turret, turretRadius, _fill);
       _stroke
         ..color = visual.trim.withValues(alpha: appear)
-        ..strokeWidth = 1.2;
-      canvas.drawCircle(turret, 6.5, _stroke);
+        ..strokeWidth = turretStroke;
+      canvas.drawCircle(turret, turretRadius, _stroke);
     }
-    // 核心
-    _glow.color = visual.core.withValues(alpha: appear * pulse * 0.35);
-    canvas.drawCircle(Offset.zero, visual.glowRadius, _glow);
-    _fill.color = visual.core.withValues(alpha: appear * pulse);
-    canvas.drawCircle(Offset.zero, visual.coreRadius, _fill);
-    _fill.color = Colors.white.withValues(alpha: appear * 0.9);
-    canvas.drawCircle(Offset.zero, 4, _fill);
 
-    // 受损裂纹
-    if (boss.hpRatio < 0.5) {
-      _stroke
-        ..color = const Color(0xFFFF5252).withValues(alpha: appear * 0.8)
-        ..strokeWidth = 1.2;
-      canvas.drawLine(const Offset(-12, -4), const Offset(-4, 6), _stroke);
-      canvas.drawLine(const Offset(18, 2), const Offset(26, 14), _stroke);
+    if (enemy.isBoss) {
+      _glow.color = visual.core.withValues(alpha: appear * pulse * 0.35);
+      canvas.drawCircle(Offset.zero, visual.glowRadius, _glow);
+      _fill.color = visual.core.withValues(alpha: appear * pulse);
+      canvas.drawCircle(Offset.zero, visual.coreRadius, _fill);
+      _fill.color = Colors.white.withValues(alpha: appear * 0.9);
+      canvas.drawCircle(Offset.zero, 4, _fill);
+      if (enemy.hpRatio < 0.5) {
+        _stroke
+          ..color = const Color(0xFFFF5252).withValues(alpha: appear * 0.8)
+          ..strokeWidth = 1.2;
+        canvas.drawLine(const Offset(-12, -4), const Offset(-4, 6), _stroke);
+        canvas.drawLine(const Offset(18, 2), const Offset(26, 14), _stroke);
+      }
+      return;
     }
+
+    _fill.color = visual.core.withValues(alpha: appear * pulse);
+    canvas.drawCircle(Offset(0, visual.coreOffsetY), visual.coreRadius, _fill);
+    _glow.color = kEnemyEngineGlow.withValues(alpha: appear * 0.8);
+    canvas.drawCircle(Offset(0, enemy.radius * 0.62), 2.4, _glow);
   }
 
   // ------------------------------------------------------------ 弹幕

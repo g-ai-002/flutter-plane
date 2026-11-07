@@ -7,6 +7,25 @@ import '../../game/battle/battle_types.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 
+/// HUD 状态条目：同一份数据同时供紧凑横条与宽屏面板渲染。
+class _HudStat {
+  const _HudStat({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.shortValue,
+    required this.fullValue,
+    this.stripIconSize = 14,
+  });
+
+  final IconData icon;
+  final Color color;
+  final String label;
+  final String shortValue;
+  final String fullValue;
+  final double stripIconSize;
+}
+
 /// 战斗 HUD：得分、生命、炸弹、波次、连击与 Boss 血条。
 ///
 /// 全部元素悬浮在战场四周，不参与战场尺寸计算，提示变化不会推动战场布局。
@@ -62,7 +81,7 @@ class BattleHud extends StatelessWidget {
     ),
     if (controller.combo >= 2)
       Positioned(right: 10, top: 62, child: _comboBadge()),
-    Positioned(left: 10, top: 76, child: _statusStrip(compact: true)),
+    Positioned(left: 10, top: 76, child: _statusStrip()),
     Positioned(left: 10, bottom: 10, child: _wavePanel(compact: true)),
     Positioned(right: 12, bottom: 12, child: _bombButton()),
   ];
@@ -171,128 +190,113 @@ class BattleHud extends StatelessWidget {
     ),
   );
 
-  Widget _statusStrip({required bool compact}) => _panel(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.rocket_launch_rounded, size: 14, color: appCyan),
-        const SizedBox(width: 4),
-        Text(
-          '×${controller.player.lives}',
-          style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: _ink,
-          ),
+  /// 会随战斗变化的状态条目：图标、配色与两种布局的文案只在这里定义，
+  /// 紧凑横条与宽屏面板不会各自维护一份而出现数值不一致。
+  List<_HudStat> _statusStats() {
+    final player = controller.player;
+    return [
+      _HudStat(
+        icon: Icons.rocket_launch_rounded,
+        color: appCyan,
+        label: '生命',
+        shortValue: '×${player.lives}',
+        fullValue: '${player.lives}',
+      ),
+      _HudStat(
+        icon: Icons.local_fire_department_rounded,
+        color: appAmber,
+        label: '炸弹',
+        shortValue: '×${player.bombs}',
+        fullValue: '${player.bombs}',
+      ),
+      _HudStat(
+        icon: Icons.bolt_rounded,
+        color: const Color(0xFF9BE8FF),
+        label: '火力',
+        shortValue: '${player.weaponLevel}',
+        fullValue: '${player.weaponLevel} 级',
+        stripIconSize: 15,
+      ),
+      if (player.rapid > 0)
+        _HudStat(
+          icon: Icons.timer_rounded,
+          color: const Color(0xFFFFE082),
+          label: '急速',
+          shortValue: '${player.rapid.ceil()}s',
+          fullValue: '${player.rapid.ceil()} 秒',
         ),
-        const SizedBox(width: 12),
-        const Icon(
-          Icons.local_fire_department_rounded,
-          size: 14,
-          color: appAmber,
-        ),
-        const SizedBox(width: 4),
-        Text(
-          '×${controller.player.bombs}',
-          style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: _ink,
-          ),
-        ),
-        const SizedBox(width: 12),
-        const Icon(Icons.bolt_rounded, size: 15, color: Color(0xFF9BE8FF)),
-        const SizedBox(width: 2),
-        Text(
-          '${controller.player.weaponLevel}',
-          style: const TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: _ink,
-          ),
-        ),
-        if (controller.player.rapid > 0) ...[
-          const SizedBox(width: 12),
-          const Icon(Icons.timer_rounded, size: 14, color: Color(0xFFFFE082)),
-          const SizedBox(width: 2),
-          Text(
-            '${controller.player.rapid.ceil()}s',
-            style: const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFFFFE082),
-            ),
-          ),
-        ],
-      ],
-    ),
-  );
+    ];
+  }
 
-  Widget _statusPanel() => _panel(
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '战机状态',
-          style: TextStyle(
-            fontSize: 10,
-            letterSpacing: 1.6,
-            color: _muted,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        _statRow(
-          Icons.rocket_launch_rounded,
-          appCyan,
-          '生命',
-          '${controller.player.lives}',
-        ),
-        const SizedBox(height: 6),
-        _statRow(
-          Icons.local_fire_department_rounded,
-          appAmber,
-          '炸弹',
-          '${controller.player.bombs}',
-        ),
-        const SizedBox(height: 6),
-        _statRow(
-          Icons.bolt_rounded,
-          const Color(0xFF9BE8FF),
-          '火力',
-          '${controller.player.weaponLevel} 级',
-        ),
-        if (controller.player.rapid > 0) ...[
-          const SizedBox(height: 6),
-          _statRow(
-            Icons.timer_rounded,
-            const Color(0xFFFFE082),
-            '急速',
-            '${controller.player.rapid.ceil()} 秒',
-          ),
-        ],
-      ],
-    ),
-  );
-
-  Widget _statRow(IconData icon, Color color, String label, String value) =>
-      Row(
+  Widget _statusStrip() {
+    final stats = _statusStats();
+    return _panel(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: color),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 11.5, color: _muted)),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 12.5,
-              fontWeight: FontWeight.w700,
-              color: _ink,
+          for (var i = 0; i < stats.length; i++) ...[
+            if (i > 0) const SizedBox(width: 12),
+            Icon(
+              stats[i].icon,
+              size: stats[i].stripIconSize,
+              color: stats[i].color,
+            ),
+            const SizedBox(width: 3),
+            Text(
+              stats[i].shortValue,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w700,
+                color: _ink,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _statusPanel() {
+    final stats = _statusStats();
+    return _panel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '战机状态',
+            style: TextStyle(
+              fontSize: 10,
+              letterSpacing: 1.6,
+              color: _muted,
+              fontWeight: FontWeight.w600,
             ),
           ),
+          for (var i = 0; i < stats.length; i++) ...[
+            SizedBox(height: i == 0 ? 8 : 6),
+            _statRow(stats[i]),
+          ],
         ],
-      );
+      ),
+    );
+  }
+
+  Widget _statRow(_HudStat stat) => Row(
+    children: [
+      Icon(stat.icon, size: 15, color: stat.color),
+      const SizedBox(width: 6),
+      Text(stat.label, style: const TextStyle(fontSize: 11.5, color: _muted)),
+      const Spacer(),
+      Text(
+        stat.fullValue,
+        style: const TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+          color: _ink,
+        ),
+      ),
+    ],
+  );
 
   Widget _wavePanel({bool compact = false, bool column = false}) => _panel(
     padding: EdgeInsets.symmetric(

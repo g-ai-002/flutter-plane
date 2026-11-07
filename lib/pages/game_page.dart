@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../flame/sky_fighter_game.dart';
 import '../game/battle/battle_controller.dart';
+import '../game/battle/battle_keys.dart';
 import '../game/battle/battle_types.dart';
 import '../game/battle/battle_viewport.dart';
 import '../providers/settings_provider.dart';
@@ -191,47 +192,17 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
     } else if (event is KeyUpEvent) {
       _pressed.remove(key);
     }
-
-    final left =
-        _pressed.contains(LogicalKeyboardKey.arrowLeft) ||
-        _pressed.contains(LogicalKeyboardKey.keyA);
-    final right =
-        _pressed.contains(LogicalKeyboardKey.arrowRight) ||
-        _pressed.contains(LogicalKeyboardKey.keyD);
-    final up =
-        _pressed.contains(LogicalKeyboardKey.arrowUp) ||
-        _pressed.contains(LogicalKeyboardKey.keyW);
-    final down =
-        _pressed.contains(LogicalKeyboardKey.arrowDown) ||
-        _pressed.contains(LogicalKeyboardKey.keyS);
-    _controller?.setMoveAxis(
-      Offset((right ? 1 : 0) - (left ? 1 : 0), (down ? 1 : 0) - (up ? 1 : 0)),
-    );
+    _controller?.setMoveAxis(moveAxisForKeys(_pressed));
 
     if (event is KeyDownEvent) {
-      if (key == LogicalKeyboardKey.space || key == LogicalKeyboardKey.keyB) {
+      if (isBombKey(key)) {
         _useBomb();
-      } else if (key == LogicalKeyboardKey.escape ||
-          key == LogicalKeyboardKey.keyP) {
+      } else if (isPauseKey(key)) {
         _togglePause();
       }
     }
 
-    final handled = {
-      LogicalKeyboardKey.arrowLeft,
-      LogicalKeyboardKey.arrowRight,
-      LogicalKeyboardKey.arrowUp,
-      LogicalKeyboardKey.arrowDown,
-      LogicalKeyboardKey.keyW,
-      LogicalKeyboardKey.keyA,
-      LogicalKeyboardKey.keyS,
-      LogicalKeyboardKey.keyD,
-      LogicalKeyboardKey.space,
-      LogicalKeyboardKey.keyB,
-      LogicalKeyboardKey.keyP,
-      LogicalKeyboardKey.escape,
-    };
-    return handled.contains(key)
+    return kBattleHandledKeys.contains(key)
         ? KeyEventResult.handled
         : KeyEventResult.ignored;
   }

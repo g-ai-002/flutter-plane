@@ -102,4 +102,30 @@ void main() {
     expect(find.text('火力'), findsOneWidget);
     expect(find.text('待命'), findsOneWidget);
   });
+
+  testWidgets('宽屏面板展示完整的急速倒计时', (tester) async {
+    final controller = BattleController(size: const Size(400, 820));
+    addTearDown(controller.dispose);
+    controller.player.rapid = 5.4;
+    await tester.binding.setSurfaceSize(const Size(1200, 860));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BattleHud(
+            controller: controller,
+            field: const Rect.fromLTWH(400, 0, 400, 820),
+            stage: const Size(1200, 860),
+            onPause: () {},
+            onBomb: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('急速'), findsOneWidget);
+    expect(find.text('6 秒'), findsOneWidget);
+    expect(find.byIcon(Icons.timer_rounded), findsOneWidget);
+  });
 }
