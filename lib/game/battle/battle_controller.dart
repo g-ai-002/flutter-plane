@@ -52,6 +52,7 @@ class BattleController extends ChangeNotifier {
   final List<Bullet> playerBullets = [];
   final List<Bullet> enemyBullets = [];
   final List<PowerUp> powerUps = [];
+  final List<Wingman> wingmen = [];
 
   List<Particle> get particles => _effects.particles;
   List<ScorePopup> get popups => _effects.popups;
@@ -121,6 +122,7 @@ class BattleController extends ChangeNotifier {
     playerBullets.clear();
     enemyBullets.clear();
     powerUps.clear();
+    wingmen.clear();
     _effects.clear();
     _events.clear();
     score = 0;
@@ -308,6 +310,7 @@ class BattleController extends ChangeNotifier {
     player.bombs,
     player.weaponLevel,
     player.rapid > 0 ? player.rapid.ceil() : 0,
+    player.wingmen,
     combo,
     multiplier,
     phase,
@@ -339,10 +342,7 @@ class BattleController extends ChangeNotifier {
 
     p.fireCooldown -= dt;
     if (p.fireCooldown <= 0) {
-      p.fireCooldown = playerFireInterval(
-        p.weaponLevel,
-        rapid: p.rapid > 0,
-      );
+      p.fireCooldown = playerFireInterval(p.weaponLevel, rapid: p.rapid > 0);
       appendPlayerShots(p, playerBullets);
       if (_shootCooldown <= 0) {
         _shootCooldown = kShootSoundInterval;
@@ -354,6 +354,22 @@ class BattleController extends ChangeNotifier {
     while (_trailTimer >= kPlayerTrailInterval) {
       _trailTimer -= kPlayerTrailInterval;
       _effects.addPlayerTrail(Offset(p.x, p.y), shielded: p.shield > 0);
+    }
+    _updateWingmen(dt);
+  }
+
+  /// 僚机追随玩家两侧，按固定间隔向正上方偏外开火。
+  void _updateWingmen(double dt) {
+    for (final wing in wingmen) {
+      final targetX = player.x + wing.side * kWingmanOffsetX;
+      final targetY = player.y + kWingmanOffsetY;
+      final follow = math.min(1, dt * kWingmanFollowLerp);
+      wing.x += (targetX - wing.x) * follow;
+      wing.y += (targetY - wing.y) * follow;
+      wing.cooldown -= dt;
+      if (wing.cooldown > 0) continue;
+      wing.cooldown = kWingmanFireInterval;
+      appendWingmanShots(wing, playerBullets);
     }
   }
 
@@ -637,6 +653,25 @@ class BattleController extends ChangeNotifier {
         _effects.addPopup(
           ScorePopup(x: item.x, y: item.y, text: '急速射击', color: 0xFFFFE082),
         );
+      case PowerUpKind.wingman:
+        if (player.wingmen < Player.maxWingmen) {
+          player.wingmen++;
+          wingmen.add(
+            Wingman(
+              side: player.wingmen.isOdd ? -1 : 1,
+              x: player.x,
+              y: player.y,
+            ),
+          );
+          _effects.addPopup(
+            ScorePopup(x: item.x, y: item.y, text: '僚机就位', color: 0xFF9BFFEA),
+          );
+        } else {
+          score += kWingmanCapScore;
+          _effects.addPopup(
+            ScorePopup(x: item.x, y: item.y, text: '+$kWingmanCapScore'),
+          );
+        }
     }
     _effects.burst(
       position,
@@ -776,10 +811,7 @@ class BattleController extends ChangeNotifier {
       return;
     }
     player.lives--;
-    player.weaponLevel = math.max(
-      1,
-      player.weaponLevel - kWeaponLossPerHit,
-    );
+    player.weaponLevel = math.max(1, player.weaponLevel - kWeaponLossPerHit);
     player.invuln = kHitInvuln;
     shake = math.max(shake, 14);
     flash = math.max(flash, 0.38);

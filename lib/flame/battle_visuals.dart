@@ -46,6 +46,14 @@ final Path playerHullPath = Path()
   ..lineTo(-4.5, -6)
   ..close();
 
+/// 僚机的小型护航轮廓。
+final Path wingmanHullPath = Path()
+  ..moveTo(0, -9)
+  ..lineTo(6.5, 6)
+  ..lineTo(0, 3.2)
+  ..lineTo(-6.5, 6)
+  ..close();
+
 final Path bossHullPath = Path()
   ..moveTo(0, 38)
   ..lineTo(-15, 27)
@@ -210,6 +218,24 @@ final Path leviathanHullPath = Path()
   ..lineTo(16, 26)
   ..close();
 
+/// 幽影方舟：细长的紫晶舰体，四座相位炮塔向两侧展开。
+final Path wraithHullPath = Path()
+  ..moveTo(0, 36)
+  ..lineTo(-14, 18)
+  ..lineTo(-34, 22)
+  ..lineTo(-50, 6)
+  ..lineTo(-30, -8)
+  ..lineTo(-36, -24)
+  ..lineTo(-10, -16)
+  ..lineTo(0, -30)
+  ..lineTo(10, -16)
+  ..lineTo(36, -24)
+  ..lineTo(30, -8)
+  ..lineTo(50, 6)
+  ..lineTo(34, 22)
+  ..lineTo(14, 18)
+  ..close();
+
 final Map<BossVariant, EnemyVisual> kBossVisuals = {
   BossVariant.scorpion: kEnemyVisuals[EnemyKind.boss]!,
   BossVariant.leviathan: EnemyVisual(
@@ -221,6 +247,21 @@ final Map<BossVariant, EnemyVisual> kBossVisuals = {
     turrets: const [Offset(-34, 12), Offset(0, 18), Offset(34, 12)],
     glowRadius: 24,
     path: leviathanHullPath,
+  ),
+  BossVariant.wraith: EnemyVisual(
+    hull: const Color(0xFF2B1B46),
+    trim: const Color(0xFFC792EA),
+    core: const Color(0xFFE6D6FF),
+    coreRadius: 8.5,
+    strokeWidth: 2.2,
+    turrets: const [
+      Offset(-38, -2),
+      Offset(-16, 12),
+      Offset(16, 12),
+      Offset(38, -2),
+    ],
+    glowRadius: 26,
+    path: wraithHullPath,
   ),
 };
 
@@ -240,6 +281,7 @@ const Map<int, Color> kEnemyBulletColors = {
   BulletKind.spread: Color(0xFFFF6BC4),
   BulletKind.boss: Color(0xFFFFD54F),
   BulletKind.plasma: Color(0xFF6BE8FF),
+  BulletKind.phase: Color(0xFFC792EA),
 };
 
 /// 敌弹配色的 ARGB 整数表：批绘制直接取整数，避免逐帧构造 Color。
@@ -258,4 +300,5 @@ const Map<PowerUpKind, Color> kPowerUpColors = {
   PowerUpKind.bomb: Color(0xFFFF6B6B),
   PowerUpKind.star: Color(0xFFFFD54F),
   PowerUpKind.rapid: Color(0xFFFFE082),
+  PowerUpKind.wingman: Color(0xFF9BFFEA),
 };

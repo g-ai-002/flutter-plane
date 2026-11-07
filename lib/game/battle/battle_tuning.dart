@@ -44,8 +44,7 @@ double waveDifficulty(int wave) =>
     1 + kWaveDifficultyStep * math.max(0, wave - 1);
 
 /// 后期敌机射速加快的系数：与血量共用同一条难度曲线。
-double enemyFireIntervalScale(int wave) =>
-    1 / math.sqrt(waveDifficulty(wave));
+double enemyFireIntervalScale(int wave) => 1 / math.sqrt(waveDifficulty(wave));
 
 // ---------------------------------------------------------------- 玩家火力
 
@@ -86,11 +85,12 @@ const int kDropPityLimit = 20;
 
 /// 掉落随机数对应的补给类型，概率顺序与玩法说明一致。
 PowerUpKind powerUpKindForRoll(double roll) {
-  if (roll < 0.4) return PowerUpKind.weapon;
-  if (roll < 0.62) return PowerUpKind.shield;
-  if (roll < 0.75) return PowerUpKind.bomb;
-  if (roll < 0.87) return PowerUpKind.star;
-  return PowerUpKind.rapid;
+  if (roll < 0.36) return PowerUpKind.weapon;
+  if (roll < 0.56) return PowerUpKind.shield;
+  if (roll < 0.68) return PowerUpKind.bomb;
+  if (roll < 0.79) return PowerUpKind.star;
+  if (roll < 0.9) return PowerUpKind.rapid;
+  return PowerUpKind.wingman;
 }
 
 /// 拾取效果与满级折算分数。
@@ -100,6 +100,24 @@ const double kRapidMaxDuration = 12;
 const int kWeaponCapScore = 300;
 const int kBombCapScore = 200;
 const int kStarPickupScore = 250;
+const int kWingmanCapScore = 250;
+
+// ---------------------------------------------------------------- 僚机
+
+/// 僚机相对机身的横向与纵向站位。
+const double kWingmanOffsetX = 27;
+const double kWingmanOffsetY = 13;
+
+/// 僚机追随玩家的收敛速度（越大越跟手）。
+const double kWingmanFollowLerp = 11;
+
+/// 僚机的射击间隔、弹速与伤害。
+const double kWingmanFireInterval = 0.36;
+const double kWingmanBulletSpeed = 540;
+const double kWingmanBulletDamage = 1;
+
+/// 僚机的外张角：左右僚机的弹道略微向两侧展开。
+const double kWingmanSpreadAngle = 0.06;
 
 // ---------------------------------------------------------------- 伤害
 

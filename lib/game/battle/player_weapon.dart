@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'battle_tuning.dart';
 import 'battle_types.dart';
 
 /// 单发子弹相对机身的横向偏移与发射角度（弧度，0 为正上方）。
@@ -37,6 +38,17 @@ const List<List<PlayerShot>> kPlayerWeaponPatterns = [
     PlayerShot(-16, -0.3),
     PlayerShot(16, 0.3),
   ],
+  [
+    PlayerShot(-9, 0),
+    PlayerShot(0, 0),
+    PlayerShot(9, 0),
+    PlayerShot(-14, -0.13),
+    PlayerShot(14, 0.13),
+    PlayerShot(-18, -0.28),
+    PlayerShot(18, 0.28),
+    PlayerShot(-21, -0.43),
+    PlayerShot(21, 0.43),
+  ],
 ];
 
 /// 按当前火力等级生成一帧的玩家弹道。
@@ -63,4 +75,20 @@ void appendPlayerShots(Player player, List<Bullet> out) {
       ),
     );
   }
+}
+
+/// 僚机的一帧弹道：左右僚机的弹道略微向外展开，避免与主机弹道重叠。
+void appendWingmanShots(Wingman wingman, List<Bullet> out) {
+  final angle = wingman.side * kWingmanSpreadAngle;
+  out.add(
+    Bullet(
+      x: wingman.x,
+      y: wingman.y - 9,
+      vx: math.sin(angle) * kWingmanBulletSpeed,
+      vy: -math.cos(angle) * kWingmanBulletSpeed,
+      radius: 3,
+      damage: kWingmanBulletDamage,
+      fromPlayer: true,
+    ),
+  );
 }

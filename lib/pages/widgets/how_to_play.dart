@@ -69,10 +69,12 @@ class _HowToPlayDialog extends StatelessWidget {
                 icon: Icons.card_giftcard_rounded,
                 title: '补给',
                 lines: [
-                  '火力：提升弹道等级，最高 5 级。',
+                  '火力：提升弹道等级，最高 6 级。',
                   '护盾：展开能量罩，抵挡一次伤害。',
                   '炸弹：补充一枚全屏炸弹，上限 3 枚。',
+                  '僚机：召唤一架僚机协同射击，最多 2 架。',
                   '分数：立即获得额外得分。',
+                  '急速：限时提升射速。',
                 ],
               ),
               const _Section(

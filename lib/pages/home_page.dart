@@ -234,6 +234,7 @@ class _Hero extends StatelessWidget {
           alignment: wide ? WrapAlignment.start : WrapAlignment.center,
           children: const [
             _FeaturePill(label: '竖版弹幕'),
+            _FeaturePill(label: '僚机护航'),
             _FeaturePill(label: 'Boss 战'),
             _FeaturePill(label: '连击倍率'),
             _FeaturePill(label: '程序化音效'),

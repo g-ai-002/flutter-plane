@@ -48,6 +48,12 @@ class BattleFieldComponent extends PositionComponent {
     const Radius.circular(5),
   );
 
+  static final Path _wingFlame = Path()
+    ..moveTo(-3, 0)
+    ..lineTo(0, 7)
+    ..lineTo(3, 0)
+    ..close();
+
   @override
   void update(double dt) {
     _clock.advance(dt, (span) {
@@ -120,6 +126,7 @@ class BattleFieldComponent extends PositionComponent {
     _drawPowerUps(canvas);
     _drawBullets(canvas);
     _drawEnemies(canvas);
+    _drawWingmen(canvas);
     _drawPlayer(canvas);
     _drawParticles(canvas);
     _drawPopups(canvas);
@@ -207,6 +214,33 @@ class BattleFieldComponent extends PositionComponent {
   }
 
   // ------------------------------------------------------------ 玩家
+
+  /// 僚机：小型护航机，带淡青色描边与持续闪烁的尾焰。
+  void _drawWingmen(Canvas canvas) {
+    if (controller.wingmen.isEmpty || !controller.player.alive) return;
+    for (final wing in controller.wingmen) {
+      canvas.save();
+      canvas.translate(wing.x, wing.y);
+      _fill.color = const Color(0xAA2B6BFF);
+      canvas.save();
+      canvas.translate(0, 5);
+      // 尾焰长度随高光闪烁，复用同一条路径缩放绘制。
+      canvas.scale(1, 0.75 + 0.25 * math.sin(controller.elapsed * 38));
+      canvas.drawPath(_wingFlame, _fill);
+      canvas.restore();
+      _fill.color = const Color(0xFF0E3B4F);
+      canvas.drawPath(wingmanHullPath, _fill);
+      _stroke
+        ..color = const Color(0xFF9BFFEA)
+        ..strokeWidth = 1.2;
+      canvas.drawPath(wingmanHullPath, _stroke);
+      _fill.color = const Color(0xFFE6FFFF);
+      canvas.drawCircle(const Offset(0, -1.6), 1.5, _fill);
+      _glow.color = const Color(0x889BFFEA);
+      canvas.drawCircle(const Offset(0, 7), 2.2, _glow);
+      canvas.restore();
+    }
+  }
 
   void _drawPlayer(Canvas canvas) {
     final player = controller.player;

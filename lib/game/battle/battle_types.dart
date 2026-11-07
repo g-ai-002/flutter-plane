@@ -42,8 +42,15 @@ enum EnemyKind {
   boss,
 }
 
-/// Boss 形态：每 4 波交替出现，弹幕与机体外观各不相同。
-enum BossVariant { scorpion, leviathan }
+/// Boss 形态：每 4 波出现一次，三种形态轮换，弹幕与机体外观各不相同。
+enum BossVariant { scorpion, leviathan, wraith }
+
+/// 各 Boss 形态的血量系数：越靠后的形态越耐打。
+const Map<BossVariant, double> kBossHpScale = {
+  BossVariant.scorpion: 1,
+  BossVariant.leviathan: 1.15,
+  BossVariant.wraith: 1.3,
+};
 
 /// 敌机移动方式。
 enum EnemyPattern { straight, sine, dive, hover, chase }
@@ -60,6 +67,9 @@ class BulletKind {
   static const int spread = 2;
   static const int boss = 3;
   static const int plasma = 4;
+
+  /// 幽影方舟的相位弹：紫白色，配合第三种 Boss 的弹幕。
+  static const int phase = 5;
 }
 
 /// 敌机静态参数。
@@ -188,6 +198,9 @@ class Player {
   /// 急速射击剩余时间（秒），大于 0 时射击间隔缩短。
   double rapid = 0;
 
+  /// 已召唤的僚机数量，最多 [maxWingmen] 架。
+  int wingmen = 0;
+
   /// 无敌时间（秒），受伤后短暂闪烁。
   double invuln = 0;
   double fireCooldown = 0;
@@ -199,7 +212,19 @@ class Player {
   static const double radius = 11;
   static const int maxLives = 5;
   static const int maxBombs = 3;
-  static const int maxWeaponLevel = 5;
+  static const int maxWeaponLevel = 6;
+  static const int maxWingmen = 2;
+}
+
+/// 僚机：在玩家两侧护航并自动开火。
+class Wingman {
+  Wingman({required this.side, required this.x, required this.y});
+
+  /// -1 为左翼，1 为右翼。
+  final int side;
+  double x;
+  double y;
+  double cooldown = 0;
 }
 
 /// 敌机实例。
@@ -218,7 +243,7 @@ class Enemy {
     maxHp =
         spec.hp *
         difficulty *
-        (kind == EnemyKind.boss && variant == BossVariant.leviathan ? 1.15 : 1);
+        (kind == EnemyKind.boss ? kBossHpScale[variant]! : 1);
     hp = maxHp;
     vy = kind == EnemyKind.boss
         ? 0
@@ -279,13 +304,13 @@ class Bullet {
   final double damage;
   final bool fromPlayer;
 
-  /// 0 能量弹、1 瞄准弹、2 散射弹、3 Boss 弹。
+  /// 0 能量弹、1 瞄准弹、2 散射弹、3 Boss 弹、4 等离子弹、5 相位弹。
   final int kind;
   bool dead = false;
 }
 
 /// 补给类型。
-enum PowerUpKind { weapon, shield, bomb, star, rapid }
+enum PowerUpKind { weapon, shield, bomb, star, rapid, wingman }
 
 const Map<PowerUpKind, String> kPowerUpLabels = {
   PowerUpKind.weapon: '火力',
@@ -293,6 +318,7 @@ const Map<PowerUpKind, String> kPowerUpLabels = {
   PowerUpKind.bomb: '炸弹',
   PowerUpKind.star: '分数',
   PowerUpKind.rapid: '急速',
+  PowerUpKind.wingman: '僚机',
 };
 
 /// 掉落的补给。

@@ -217,6 +217,14 @@ class BattleHud extends StatelessWidget {
         fullValue: '${player.weaponLevel} 级',
         stripIconSize: 15,
       ),
+      if (player.wingmen > 0)
+        _HudStat(
+          icon: Icons.flight_rounded,
+          color: const Color(0xFF9BFFEA),
+          label: '僚机',
+          shortValue: '×${player.wingmen}',
+          fullValue: '${player.wingmen} 架',
+        ),
       if (player.rapid > 0)
         _HudStat(
           icon: Icons.timer_rounded,
