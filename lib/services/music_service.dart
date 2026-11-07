@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 
 import 'log_service.dart';
+import 'synth_worker.dart';
 import 'tone_synth.dart';
 
 /// 背景音乐：运行时合成强节奏循环，与音效共用 SoLoud 音频引擎。
@@ -55,9 +56,10 @@ class MusicService {
     try {
       final soloud = SoLoud.instance;
       if (!soloud.isInitialized) await soloud.init();
+      // 8 秒循环音乐有十几万个采样点，放到后台 isolate 合成。
       _source ??= await soloud.loadMem(
         'skyfighter-bgm.wav',
-        synthesizeMusicWav(),
+        await runSynth(_synthesizeMusic),
       );
     } catch (error) {
       _failed = true;
@@ -148,3 +150,6 @@ class MusicService {
     _suspended = false;
   }
 }
+
+/// 后台 isolate 的入口：无参数、无捕获，直接调用顶层合成函数。
+Uint8List _synthesizeMusic() => synthesizeMusicWav();

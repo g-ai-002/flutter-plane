@@ -24,10 +24,14 @@ Future<void> main() async {
     return true;
   };
 
-  await setupDesktopWindow();
-  await initLogging();
-
-  final storage = await StorageService.instance;
+  // 窗口、日志与本地存储互不依赖，三者并行初始化以缩短冷启动；
+  // LogService 会把初始化前的日志暂存，稍后补写。
+  final startup = await Future.wait<Object?>([
+    setupDesktopWindow(),
+    initLogging(),
+    StorageService.instance,
+  ]);
+  final storage = startup[2]! as StorageService;
   LogService.info('应用启动: ${AppConstants.appName} v${AppConstants.version}');
   unawaited(SoundService.init());
   MusicService.enabled = storage.musicEnabled;

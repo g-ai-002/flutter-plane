@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 
 import 'log_service.dart';
+import 'synth_worker.dart';
 import 'tone_synth.dart';
 
 /// 战斗反馈类型，决定提示音与震动的强弱。
@@ -234,10 +235,13 @@ class SoundService {
     try {
       final soloud = SoLoud.instance;
       if (!soloud.isInitialized) await soloud.init();
+      // 九个音效的采样合成一次放到后台 isolate，主线程只负责装载音源。
+      final clips = await runSynth(_synthesizeAllClips);
+      _clips.addAll(clips);
       for (final sound in GameSound.values) {
         _sources[sound] = await soloud.loadMem(
           'skyfighter-${sound.name}.wav',
-          clipOf(sound),
+          _clips[sound]!,
         );
       }
     } catch (error) {
@@ -315,3 +319,9 @@ class SoundService {
     hapticsEnabled = true;
   }
 }
+
+/// 后台 isolate 的入口：一次合成全部音效，只引用静态配方表，不捕获调用方状态。
+Map<GameSound, Uint8List> _synthesizeAllClips() => {
+  for (final sound in GameSound.values)
+    sound: synthesizeWav(SoundService.presets[sound]!),
+};
