@@ -31,14 +31,32 @@ class BattleFieldComponent extends PositionComponent {
   final Paint _stroke = Paint()..style = PaintingStyle.stroke;
   final Paint _glow = Paint();
   final DotBatch _dots = DotBatch();
+  final DotBatch _dotsUnder = DotBatch();
   final CapsuleBatch _capsules = CapsuleBatch();
   final SegmentBatch _segments = SegmentBatch();
-  final Map<String, TextPainter> _textCache = {};
+
+  /// 文本缓存分两层：先按文本取样式表，再用整型样式键取排版结果。
+  /// 热路径上不再拼接 `文本|字号|颜色|字重` 字符串，飘字与补给标签
+  /// 每帧数百次查找也不会产生临时字符串。
+  final Map<String, Map<int, TextPainter>> _textCache = {};
+  int _textPainterCount = 0;
+  /// 量化透明度后复用的 [Color]，避免逐帧为淡出中的粒子与血条新建颜色。
+  final Map<int, Color> _colorCache = {};
 
   static const int _whiteArgb = 0xFFFFFFFF;
   static const int _starStreakArgb = 0xFF7FD8FF;
   static final int _playerBulletGlowArgb = kPlayerBulletGlow.toARGB32();
   static final int _playerBulletBodyArgb = kPlayerBulletBody.toARGB32();
+  static final int _playerShieldArgb = kPlayerBulletGlow.toARGB32();
+  static final int _playerShieldTrimArgb = kPlayerBulletBody.toARGB32();
+  static final int _enemyEngineGlowArgb = kEnemyEngineGlow.toARGB32();
+  static const int _bossCoreCrackArgb = 0xFFFF5252;
+
+  /// 文本样式缓存上限：超过后整组淘汰最早的一条文本。
+  static const int _maxCachedPainters = 120;
+
+  /// 颜色缓存上限：量化档位与调色板都有限，正常不会触顶。
+  static const int _maxCachedColors = 512;
 
   Size _backgroundSize = Size.zero;
   ui.Picture? _backgroundPicture;
@@ -54,6 +72,16 @@ class BattleFieldComponent extends PositionComponent {
     ..lineTo(3, 0)
     ..close();
 
+  /// 玩家尾焰按闪烁幅度预先建好 8 条路径，逐帧只按下标取用。
+  static final List<Path> _playerFlames = [
+    for (var i = 0; i < 8; i++)
+      Path()
+        ..moveTo(-4, 11)
+        ..lineTo(0, 11 + 6 + i * 8 / 7)
+        ..lineTo(4, 11)
+        ..close(),
+  ];
+
   @override
   void update(double dt) {
     _clock.advance(dt, (span) {
@@ -66,10 +94,14 @@ class BattleFieldComponent extends PositionComponent {
   void onRemove() {
     _backgroundPicture?.dispose();
     _backgroundPicture = null;
-    for (final painter in _textCache.values) {
-      painter.dispose();
+    for (final styles in _textCache.values) {
+      for (final painter in styles.values) {
+        painter.dispose();
+      }
     }
     _textCache.clear();
+    _textPainterCount = 0;
+    _colorCache.clear();
     super.onRemove();
   }
 
@@ -123,19 +155,17 @@ class BattleFieldComponent extends PositionComponent {
       );
     }
     _drawStars(canvas);
-    _drawPowerUps(canvas);
+    _drawPowerUps(canvas, world);
     _drawBullets(canvas);
     _drawEnemies(canvas);
     _drawWingmen(canvas);
     _drawPlayer(canvas);
-    _drawParticles(canvas);
-    _drawPopups(canvas);
+    _drawParticles(canvas, world);
+    _drawPopups(canvas, world);
     canvas.restore();
 
     if (controller.flash > 0.01) {
-      _fill.color = Colors.white.withValues(
-        alpha: controller.flash.clamp(0.0, 0.85) * 0.55,
-      );
+      _fill.color = _fadeColor(_whiteArgb, controller.flash * 0.55);
       canvas.drawRect(Rect.fromLTWH(0, 0, world.width, world.height), _fill);
     }
     canvas.restore();
@@ -251,13 +281,10 @@ class BattleFieldComponent extends PositionComponent {
     canvas.translate(player.x, player.y);
     canvas.rotate(player.tilt * 0.16);
 
-    // 尾焰
+    // 尾焰：按正弦闪烁幅度取用预建路径，不再逐帧构造 Path。
     final flicker = 10 + math.sin(controller.elapsed * 42) * 4;
-    final flame = Path()
-      ..moveTo(-4, 11)
-      ..lineTo(0, 11 + flicker)
-      ..lineTo(4, 11)
-      ..close();
+    final flame =
+        _playerFlames[((flicker - 6) / 8 * 7).round().clamp(0, 7)];
     _fill.color = const Color(0xBB2B6BFF);
     canvas.drawPath(flame, _fill);
     _fill.color = const Color(0xE67FD8FF);
@@ -292,13 +319,13 @@ class BattleFieldComponent extends PositionComponent {
     if (player.shield > 0) {
       final pulse = 0.55 + 0.25 * math.sin(controller.elapsed * 9);
       _stroke
-        ..color = const Color(0xFF7FD8FF).withValues(alpha: pulse)
+        ..color = _fadeColor(_playerShieldArgb, pulse)
         ..strokeWidth = 1.8;
       canvas.drawCircle(Offset.zero, 24, _stroke);
-      _fill.color = const Color(0xFF7FD8FF).withValues(alpha: 0.08);
+      _fill.color = _fadeColor(_playerShieldArgb, 0.08);
       canvas.drawCircle(Offset.zero, 24, _fill);
       _stroke
-        ..color = const Color(0xFFB7F4FF).withValues(alpha: pulse * 0.8)
+        ..color = _fadeColor(_playerShieldTrimArgb, pulse * 0.8)
         ..strokeWidth = 2.2;
       canvas.drawArc(
         Rect.fromCircle(center: Offset.zero, radius: 27),
@@ -343,34 +370,37 @@ class BattleFieldComponent extends PositionComponent {
     required double pulse,
     required bool hit,
   }) {
-    _fill.color = _fade(hit ? Colors.white : visual.hull, appear);
+    final hullArgb = hit ? _whiteArgb : visual.hull.toARGB32();
+    final trimArgb = hit ? _whiteArgb : visual.trim.toARGB32();
+    final coreArgb = visual.core.toARGB32();
+    _fill.color = _fadeColor(hullArgb, appear);
     canvas.drawPath(visual.path, _fill);
     _stroke
-      ..color = _fade(hit ? Colors.white : visual.trim, appear)
+      ..color = _fadeColor(trimArgb, appear)
       ..strokeWidth = visual.strokeWidth;
     canvas.drawPath(visual.path, _stroke);
 
     final turretRadius = enemy.isBoss ? 6.5 : 4.6;
     final turretStroke = enemy.isBoss ? 1.2 : 1.1;
     for (final turret in visual.turrets) {
-      _fill.color = _fade(visual.hull, appear);
+      _fill.color = _fadeColor(hullArgb, appear);
       canvas.drawCircle(turret, turretRadius, _fill);
       _stroke
-        ..color = _fade(visual.trim, appear)
+        ..color = _fadeColor(trimArgb, appear)
         ..strokeWidth = turretStroke;
       canvas.drawCircle(turret, turretRadius, _stroke);
     }
 
     if (enemy.isBoss) {
-      _glow.color = visual.core.withValues(alpha: appear * pulse * 0.35);
+      _glow.color = _fadeColor(coreArgb, appear * pulse * 0.35);
       canvas.drawCircle(Offset.zero, visual.glowRadius, _glow);
-      _fill.color = visual.core.withValues(alpha: appear * pulse);
+      _fill.color = _fadeColor(coreArgb, appear * pulse);
       canvas.drawCircle(Offset.zero, visual.coreRadius, _fill);
-      _fill.color = Colors.white.withValues(alpha: appear * 0.9);
+      _fill.color = _fadeColor(_whiteArgb, appear * 0.9);
       canvas.drawCircle(Offset.zero, 4, _fill);
       if (enemy.hpRatio < 0.5) {
         _stroke
-          ..color = const Color(0xFFFF5252).withValues(alpha: appear * 0.8)
+          ..color = _fadeColor(_bossCoreCrackArgb, appear * 0.8)
           ..strokeWidth = 1.2;
         canvas.drawLine(const Offset(-12, -4), const Offset(-4, 6), _stroke);
         canvas.drawLine(const Offset(18, 2), const Offset(26, 14), _stroke);
@@ -378,67 +408,53 @@ class BattleFieldComponent extends PositionComponent {
       return;
     }
 
-    _fill.color = visual.core.withValues(alpha: appear * pulse);
+    _fill.color = _fadeColor(coreArgb, appear * pulse);
     canvas.drawCircle(Offset(0, visual.coreOffsetY), visual.coreRadius, _fill);
-    _glow.color = kEnemyEngineGlow.withValues(alpha: appear * 0.8);
+    _glow.color = _fadeColor(_enemyEngineGlowArgb, appear * 0.8);
     canvas.drawCircle(Offset(0, enemy.radius * 0.62), 2.4, _glow);
   }
 
   // ------------------------------------------------------------ 弹幕
 
   void _drawBullets(Canvas canvas) {
-    // 玩家弹：辉光 → 弹体 → 弹芯，三层各自合并成一次绘制。
+    // 玩家弹：辉光、弹体与弹芯一次遍历收集完再统一提交，
+    // 每颗子弹只走一遍列表，不再分三趟读写批绘制缓冲。
     for (final bullet in controller.playerBullets) {
       _dots.add(_playerBulletGlowArgb, bullet.x, bullet.y, 8, 0.28);
-    }
-    _dots.flush(canvas);
-    for (final bullet in controller.playerBullets) {
       _capsules.add(_playerBulletBodyArgb, bullet.x, bullet.y, 4, 6, 1);
       _capsules.add(_whiteArgb, bullet.x, bullet.y, 2.9, 2.2, 1);
     }
+    _dots.flush(canvas);
     _capsules.flush(canvas);
 
-    // 敌弹：辉光、弹体、弹芯同样按颜色分桶批量绘制。
+    // 敌弹：辉光写入下层桶，弹体与弹芯写入上层桶，一次遍历完成收集。
+    // 两个桶分别提交，保持「全部辉光在下、弹芯在上」的既有层级。
     for (final bullet in controller.enemyBullets) {
-      _dots.add(
-        enemyBulletArgb(bullet.kind),
-        bullet.x,
-        bullet.y,
-        bullet.radius * 2.4,
-        0.26,
-      );
-    }
-    _dots.flush(canvas);
-    for (final bullet in controller.enemyBullets) {
-      _dots.add(
-        enemyBulletArgb(bullet.kind),
-        bullet.x,
-        bullet.y,
-        bullet.radius,
-        1,
-      );
-    }
-    _dots.flush(canvas);
-    for (final bullet in controller.enemyBullets) {
+      final argb = enemyBulletArgb(bullet.kind);
+      _dotsUnder.add(argb, bullet.x, bullet.y, bullet.radius * 2.4, 0.26);
+      _dots.add(argb, bullet.x, bullet.y, bullet.radius, 1);
       _dots.add(_whiteArgb, bullet.x, bullet.y, bullet.radius * 0.42, 0.85);
     }
+    _dotsUnder.flush(canvas);
     _dots.flush(canvas);
   }
 
   // ------------------------------------------------------------ 补给
 
-  void _drawPowerUps(Canvas canvas) {
+  void _drawPowerUps(Canvas canvas, Size world) {
     for (final item in controller.powerUps) {
-      final color = kPowerUpColors[item.kind]!;
+      if (item.x < -24 || item.x > world.width + 24) continue;
+      if (item.y < -24 || item.y > world.height + 24) continue;
+      final argb = kPowerUpArgb[item.kind]!;
       canvas.save();
       canvas.translate(item.x, item.y);
       canvas.rotate(item.age * 1.8);
-      _fill.color = color.withValues(alpha: 0.18);
+      _fill.color = _fadeColor(argb, 0.18);
       canvas.drawCircle(Offset.zero, 17, _fill);
       _fill.color = const Color(0xFF101A33);
       canvas.drawRRect(_powerUpBox, _fill);
       _stroke
-        ..color = color
+        ..color = _fadeColor(argb, 1)
         ..strokeWidth = 1.8;
       canvas.drawRRect(_powerUpBox, _stroke);
       canvas.restore();
@@ -447,7 +463,7 @@ class BattleFieldComponent extends PositionComponent {
       final painter = _text(
         label,
         size: 11,
-        color: color,
+        color: _fadeColor(argb, 1),
         weight: FontWeight.w700,
       );
       painter.paint(
@@ -459,8 +475,15 @@ class BattleFieldComponent extends PositionComponent {
 
   // ------------------------------------------------------------ 粒子与飘字
 
-  void _drawParticles(Canvas canvas) {
+  void _drawParticles(Canvas canvas, Size world) {
     for (final particle in controller.particles) {
+      // 边缘爆炸的碎片会飞出战场，屏幕外的直接跳过，省掉批绘制写入。
+      if (particle.x < -24 ||
+          particle.x > world.width + 24 ||
+          particle.y < -24 ||
+          particle.y > world.height + 24) {
+        continue;
+      }
       final fade = (1 - particle.progress).clamp(0.0, 1.0);
       switch (particle.kind) {
         case ParticleKind.spark:
@@ -482,7 +505,7 @@ class BattleFieldComponent extends PositionComponent {
           );
         case ParticleKind.ring:
           _stroke
-            ..color = Color(particle.color).withValues(alpha: fade * 0.8)
+            ..color = _fadeColor(particle.color, fade * 0.8)
             ..strokeWidth = 1.6;
           canvas.drawCircle(
             Offset(particle.x, particle.y),
@@ -511,11 +534,16 @@ class BattleFieldComponent extends PositionComponent {
     _segments.flush(canvas);
   }
 
-  void _drawPopups(Canvas canvas) {
+  void _drawPopups(Canvas canvas, Size world) {
     for (final popup in controller.popups) {
+      if (popup.x < -40 ||
+          popup.x > world.width + 40 ||
+          popup.y < -30 ||
+          popup.y > world.height + 30) {
+        continue;
+      }
       final alpha = ((popup.life / 0.8) * 4).ceil() / 4;
-      final color = Color(popup.color ?? 0xFFE8F6FF)
-          .withValues(alpha: alpha.clamp(0.0, 1.0));
+      final color = _fadeColor(popup.color ?? 0xFFE8F6FF, alpha);
       final painter = _text(popup.text, size: 13, color: color);
       painter.paint(
         canvas,
@@ -524,9 +552,22 @@ class BattleFieldComponent extends PositionComponent {
     }
   }
 
-  /// 不透明度拉满时直接复用原色，稳定帧里不再逐架新建 [Color]。
-  Color _fade(Color color, double alpha) =>
-      alpha >= 1 ? color : color.withValues(alpha: alpha);
+  /// 按量化后的透明度取缓存的 [Color]：同色同档位只构造一次，
+  /// 淡出中的飘字、护盾与 Boss 核心不再每帧新建颜色对象。
+  Color _fadeColor(int argb, double alpha) {
+    final level = alpha <= 0
+        ? 0
+        : alpha >= 1
+        ? 16
+        : (alpha * 16).round();
+    final key = argb * 24 + level;
+    final cached = _colorCache[key];
+    if (cached != null) return cached;
+    if (_colorCache.length >= _maxCachedColors) _colorCache.clear();
+    final color = Color(argb).withValues(alpha: level / 16);
+    _colorCache[key] = color;
+    return color;
+  }
 
   TextPainter _text(
     String text, {
@@ -534,13 +575,12 @@ class BattleFieldComponent extends PositionComponent {
     Color color = Colors.white,
     FontWeight weight = FontWeight.w600,
   }) {
-    final key = '$text|$size|${color.toARGB32()}|${weight.value}';
-    final cached = _textCache[key];
+    final styles = _textCache[text] ??= <int, TextPainter>{};
+    final styleKey =
+        color.toARGB32() * 4096 + (size * 10).round() * 8 + weight.value ~/ 100;
+    final cached = styles[styleKey];
     if (cached != null) return cached;
-    if (_textCache.length > 90) {
-      // 只淘汰最早的一条，避免缓存满了就整体清空导致下一帧集中重建。
-      _textCache.remove(_textCache.keys.first);
-    }
+    if (_textPainterCount >= _maxCachedPainters) _evictOldestText();
     final painter = TextPainter(
       text: TextSpan(
         text: text,
@@ -554,7 +594,25 @@ class BattleFieldComponent extends PositionComponent {
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    _textCache[key] = painter;
+    styles[styleKey] = painter;
+    _textPainterCount++;
     return painter;
   }
+
+  /// 淘汰最早收录的一条文本及其全部字号/颜色变体。
+  void _evictOldestText() {
+    final oldest = _textCache.keys.first;
+    final styles = _textCache.remove(oldest);
+    if (styles == null) return;
+    for (final painter in styles.values) {
+      painter.dispose();
+    }
+    _textPainterCount -= styles.length;
+  }
+
+  /// 已缓存的文本排版数量，供测试确认逐帧复用而不是反复重建。
+  int get cachedTextPainters => _textPainterCount;
+
+  /// 已缓存的颜色数量，供测试确认量化后不再逐帧增长。
+  int get cachedColors => _colorCache.length;
 }

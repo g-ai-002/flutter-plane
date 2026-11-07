@@ -282,3 +282,9 @@ const Map<PowerUpKind, Color> kPowerUpColors = {
   PowerUpKind.rapid: Color(0xFFFFE082),
   PowerUpKind.wingman: Color(0xFF9BFFEA),
 };
+
+/// 补给配色的 ARGB 整数表：渲染层按档位缓存颜色时直接取整数。
+final Map<PowerUpKind, int> kPowerUpArgb = {
+  for (final entry in kPowerUpColors.entries)
+    entry.key: entry.value.toARGB32(),
+};
