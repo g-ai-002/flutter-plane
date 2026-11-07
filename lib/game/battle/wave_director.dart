@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'battle_types.dart';
+import 'boss_catalog.dart';
 
 /// 一条待生成的敌机记录。
 class SpawnRequest {
@@ -57,13 +58,10 @@ class WaveDirector {
   /// 开始下一波：Boss 波只生成 Boss，其余按关卡组合编队。
   void startNextWave() {
     wave++;
-    bossWave = wave % 4 == 0;
+    bossWave = wave % kBossWaveInterval == 0;
     _pending.clear();
     if (bossWave) {
-      final bossIndex = wave ~/ 4 - 1;
-      bossVariant = bossIndex.isEven
-          ? BossVariant.scorpion
-          : BossVariant.leviathan;
+      bossVariant = bossVariantForWave(wave);
       _pending.add(
         _PendingSpawn(
           SpawnRequest(

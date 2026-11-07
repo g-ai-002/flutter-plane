@@ -77,6 +77,7 @@ class EnemySpec {
     this.bulletSpeed = 0,
     this.bulletKind = BulletKind.aimed,
     this.fireMode = EnemyFireMode.aimed,
+    this.explosionColor = 0xFFFFB347,
   });
 
   final double hp;
@@ -91,6 +92,9 @@ class EnemySpec {
   final double bulletSpeed;
   final int bulletKind;
   final EnemyFireMode fireMode;
+
+  /// 击破时的爆炸配色，逻辑层无需再按敌机种类分支。
+  final int explosionColor;
 }
 
 const Map<EnemyKind, EnemySpec> kEnemySpecs = {
@@ -103,6 +107,7 @@ const Map<EnemyKind, EnemySpec> kEnemySpecs = {
     fireInterval: 2.1,
     fireCount: 1,
     bulletSpeed: 185,
+    explosionColor: 0xFFFF7A59,
   ),
   EnemyKind.bomber: EnemySpec(
     hp: 26,
@@ -114,6 +119,7 @@ const Map<EnemyKind, EnemySpec> kEnemySpecs = {
     fireSpread: 0.22,
     bulletSpeed: 155,
     bulletKind: BulletKind.spread,
+    explosionColor: 0xFFFF5252,
   ),
   EnemyKind.elite: EnemySpec(
     hp: 52,
@@ -125,6 +131,7 @@ const Map<EnemyKind, EnemySpec> kEnemySpecs = {
     fireSpread: 0.17,
     bulletSpeed: 175,
     bulletKind: BulletKind.spread,
+    explosionColor: 0xFFFF4FA3,
   ),
   EnemyKind.interceptor: EnemySpec(
     hp: 8,
@@ -134,8 +141,15 @@ const Map<EnemyKind, EnemySpec> kEnemySpecs = {
     fireInterval: 1.7,
     fireCount: 1,
     bulletSpeed: 300,
+    explosionColor: 0xFFFFE082,
   ),
-  EnemyKind.drone: EnemySpec(hp: 5, radius: 10, score: 100, dropChance: 0.05),
+  EnemyKind.drone: EnemySpec(
+    hp: 5,
+    radius: 10,
+    score: 100,
+    dropChance: 0.05,
+    explosionColor: 0xFFFF7043,
+  ),
   EnemyKind.fortress: EnemySpec(
     hp: 84,
     radius: 26,
@@ -146,6 +160,7 @@ const Map<EnemyKind, EnemySpec> kEnemySpecs = {
     bulletSpeed: 125,
     bulletKind: BulletKind.spread,
     fireMode: EnemyFireMode.radial,
+    explosionColor: 0xFFB388FF,
   ),
   EnemyKind.boss: EnemySpec(
     hp: 180,
@@ -153,6 +168,7 @@ const Map<EnemyKind, EnemySpec> kEnemySpecs = {
     score: 2000,
     dropChance: 1,
     fireInterval: 1.9,
+    explosionColor: 0xFFFFD54F,
   ),
 };
 

@@ -3,6 +3,9 @@ import 'dart:ui';
 
 import 'battle_types.dart';
 
+/// Boss 就位后的悬停高度。
+const double kBossHoverY = 92;
+
 /// 敌机移动策略：按 [EnemyPattern] 推进一帧位置。
 ///
 /// 与开火、碰撞、掉落分离，新增移动方式时只需在这里补充分支。
@@ -53,8 +56,8 @@ void _advanceHover(Enemy enemy, double dt) {
 bool advanceBossEntry(Enemy boss, double dt) {
   if (boss.entered) return true;
   boss.y += 78 * dt;
-  if (boss.y >= 92) {
-    boss.y = 92;
+  if (boss.y >= kBossHoverY) {
+    boss.y = kBossHoverY;
     boss.entered = true;
   }
   return boss.entered;
@@ -64,5 +67,5 @@ bool advanceBossEntry(Enemy boss, double dt) {
 void hoverBoss(Enemy boss, Size world) {
   final sway = math.min(118.0, world.width / 2 - 58);
   boss.x = world.width / 2 + math.sin(boss.age * 0.72) * sway;
-  boss.y = 92 + math.sin(boss.age * 1.3) * 6;
+  boss.y = kBossHoverY + math.sin(boss.age * 1.3) * 6;
 }
