@@ -14,10 +14,7 @@ void main() {
     test('敌机射速随难度同步加快', () {
       expect(enemyFireIntervalScale(1), 1);
       expect(enemyFireIntervalScale(2), lessThan(1));
-      expect(
-        enemyFireIntervalScale(11),
-        lessThan(enemyFireIntervalScale(2)),
-      );
+      expect(enemyFireIntervalScale(11), lessThan(enemyFireIntervalScale(2)));
     });
   });
 
@@ -57,18 +54,17 @@ void main() {
   group('掉落映射', () {
     test('随机数落在对应区间时返回对应补给', () {
       expect(powerUpKindForRoll(0), PowerUpKind.weapon);
-      expect(powerUpKindForRoll(0.39), PowerUpKind.weapon);
-      expect(powerUpKindForRoll(0.4), PowerUpKind.shield);
-      expect(powerUpKindForRoll(0.62), PowerUpKind.bomb);
-      expect(powerUpKindForRoll(0.75), PowerUpKind.star);
-      expect(powerUpKindForRoll(0.87), PowerUpKind.rapid);
-      expect(powerUpKindForRoll(0.999), PowerUpKind.rapid);
+      expect(powerUpKindForRoll(0.35), PowerUpKind.weapon);
+      expect(powerUpKindForRoll(0.36), PowerUpKind.shield);
+      expect(powerUpKindForRoll(0.56), PowerUpKind.bomb);
+      expect(powerUpKindForRoll(0.68), PowerUpKind.star);
+      expect(powerUpKindForRoll(0.79), PowerUpKind.rapid);
+      expect(powerUpKindForRoll(0.9), PowerUpKind.wingman);
+      expect(powerUpKindForRoll(0.999), PowerUpKind.wingman);
     });
 
     test('全部补给类型都能掉落', () {
-      final kinds = {
-        for (var i = 0; i < 100; i++) powerUpKindForRoll(i / 100),
-      };
+      final kinds = {for (var i = 0; i < 100; i++) powerUpKindForRoll(i / 100)};
       expect(kinds, containsAll(PowerUpKind.values));
     });
   });

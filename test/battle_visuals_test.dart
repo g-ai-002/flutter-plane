@@ -25,7 +25,7 @@ void main() {
       expect(bossHullPath.getBounds().width, 92);
     });
 
-    test('两种 Boss 形态都有独立外观与炮塔', () {
+    test('三种 Boss 形态都有独立外观与炮塔', () {
       for (final variant in BossVariant.values) {
         final visual = kBossVisuals[variant];
         expect(visual, isNotNull, reason: '缺少 $variant 的外观');
@@ -38,6 +38,8 @@ void main() {
       );
       expect(leviathanHullPath.getBounds().width, greaterThan(100));
       expect(kBossVisuals[BossVariant.leviathan]!.turrets, hasLength(3));
+      expect(kBossVisuals[BossVariant.wraith]!.turrets, hasLength(4));
+      expect(wraithHullPath.getBounds().width, greaterThan(90));
     });
 
     test('visualFor 按 Boss 形态与敌机类型取外观', () {
@@ -63,8 +65,8 @@ void main() {
 
   group('弹道与补给配色', () {
     test('敌弹外观覆盖全部非玩家弹种', () {
-      expect(kEnemyBulletColors.keys, containsAll([1, 2, 3, 4]));
-      expect(kEnemyBulletColors.values.toSet(), hasLength(4));
+      expect(kEnemyBulletColors.keys, containsAll([1, 2, 3, 4, 5]));
+      expect(kEnemyBulletColors.values.toSet(), hasLength(5));
     });
 
     test('补给配色覆盖全部类型', () {

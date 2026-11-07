@@ -59,6 +59,16 @@ void main() {
     expect(find.text('6s'), findsOneWidget);
   });
 
+  testWidgets('僚机编队生效时展示数量', (tester) async {
+    final controller = BattleController(size: const Size(400, 820));
+    addTearDown(controller.dispose);
+    controller.player.wingmen = 2;
+    await pumpHud(tester, controller);
+
+    expect(find.byIcon(Icons.flight_rounded), findsOneWidget);
+    expect(find.text('×2'), findsNWidgets(2));
+  });
+
   testWidgets('Boss 出现时展示名称与血条', (tester) async {
     final controller = BattleController(size: const Size(400, 820))..wave = 4;
     controller.enemies.add(

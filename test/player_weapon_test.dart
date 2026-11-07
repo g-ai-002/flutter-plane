@@ -44,13 +44,42 @@ void main() {
       }
     });
 
+    test('六级火力九发且左右对称', () {
+      final player = Player(x: 200, y: 600)
+        ..weaponLevel = Player.maxWeaponLevel;
+      final shots = buildPlayerShots(player);
+
+      expect(shots, hasLength(9));
+      expect(shots.map((shot) => shot.x), containsAll([191, 200, 209]));
+      final left = shots.firstWhere((shot) => shot.x < 200 && shot.vx < 0);
+      final right = shots.firstWhere((shot) => shot.x > 200 && shot.vx > 0);
+      expect(left.vx, closeTo(-right.vx, 0.0001));
+    });
+
+    test('僚机弹道向机身外侧展开且从翼尖射出', () {
+      final left = Wingman(side: -1, x: 170, y: 600);
+      final right = Wingman(side: 1, x: 230, y: 600);
+      final out = <Bullet>[];
+
+      appendWingmanShots(left, out);
+      appendWingmanShots(right, out);
+
+      expect(out, hasLength(2));
+      expect(out[0].x, 170);
+      expect(out[0].y, 591);
+      expect(out[0].vx, lessThan(0));
+      expect(out[1].vx, greaterThan(0));
+      expect(out.every((bullet) => bullet.vy < 0), isTrue);
+      expect(out.every((bullet) => bullet.fromPlayer), isTrue);
+    });
+
     test('等级越界时收敛到有效弹道', () {
       final low = Player(x: 200, y: 600)..weaponLevel = 0;
       expect(buildPlayerShots(low), hasLength(1));
 
       final high = Player(x: 200, y: 600)
         ..weaponLevel = Player.maxWeaponLevel + 3;
-      expect(buildPlayerShots(high), hasLength(7));
+      expect(buildPlayerShots(high), hasLength(9));
     });
 
     test('追加弹道直接写入目标列表', () {

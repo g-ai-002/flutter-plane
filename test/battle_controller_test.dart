@@ -430,6 +430,122 @@ void main() {
         isTrue,
       );
     });
+
+    test('第 12 波为幽影方舟，入场后发射相位弹幕', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      controller.wave = 12;
+      expect(controller.bossVariant, BossVariant.wraith);
+      expect(controller.bossName, '幽影方舟');
+
+      final boss = Enemy(
+        kind: EnemyKind.boss,
+        pattern: EnemyPattern.hover,
+        x: 200,
+        y: -60,
+        difficulty: 1,
+        variant: BossVariant.wraith,
+      );
+      controller.enemies.add(boss);
+      advance(controller, 3.2);
+      expect(boss.entered, isTrue);
+      expect(controller.enemyBullets, isNotEmpty);
+      expect(
+        controller.enemyBullets.every(
+          (bullet) => bullet.kind == BulletKind.phase,
+        ),
+        isTrue,
+      );
+    });
+  });
+
+  group('僚机', () {
+    test('拾取僚机补给召唤左翼僚机并跟随玩家', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      expect(controller.player.wingmen, 0);
+
+      controller.powerUps.add(
+        PowerUp(
+          x: controller.player.x,
+          y: controller.player.y,
+          kind: PowerUpKind.wingman,
+        ),
+      );
+      advance(controller, 0.1);
+
+      expect(controller.player.wingmen, 1);
+      expect(controller.wingmen, hasLength(1));
+      expect(controller.wingmen.single.side, -1);
+      expect(controller.wingmen.single.x, lessThan(controller.player.x));
+      expect(controller.wingmen.single.y, greaterThan(controller.player.y));
+      expect(controller.popups.any((popup) => popup.text == '僚机就位'), isTrue);
+    });
+
+    test('最多两架僚机，满编后补给折算分数', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      for (var i = 0; i < 2; i++) {
+        controller.powerUps.add(
+          PowerUp(
+            x: controller.player.x,
+            y: controller.player.y,
+            kind: PowerUpKind.wingman,
+          ),
+        );
+        advance(controller, 0.02);
+      }
+      expect(controller.player.wingmen, Player.maxWingmen);
+      expect(controller.wingmen.map((wing) => wing.side), [-1, 1]);
+
+      controller.powerUps.add(
+        PowerUp(
+          x: controller.player.x,
+          y: controller.player.y,
+          kind: PowerUpKind.wingman,
+        ),
+      );
+      advance(controller, 0.02);
+      expect(controller.player.wingmen, Player.maxWingmen);
+      expect(controller.wingmen, hasLength(Player.maxWingmen));
+      expect(controller.score, 250);
+    });
+
+    test('僚机自动向外侧开火', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      controller.player.wingmen = 1;
+      controller.wingmen.add(
+        Wingman(
+          side: 1,
+          x: controller.player.x + 27,
+          y: controller.player.y + 13,
+        ),
+      );
+
+      advance(controller, 0.1);
+
+      final wingShots = controller.playerBullets
+          .where((bullet) => bullet.x > controller.player.x + 20)
+          .toList();
+      expect(wingShots, isNotEmpty);
+      expect(wingShots.every((bullet) => bullet.vx > 0), isTrue);
+      expect(wingShots.every((bullet) => bullet.vy < 0), isTrue);
+    });
+
+    test('重新开始清空僚机', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      controller.player.wingmen = 1;
+      controller.wingmen.add(
+        Wingman(side: -1, x: controller.player.x, y: controller.player.y),
+      );
+
+      controller.start();
+
+      expect(controller.player.wingmen, 0);
+      expect(controller.wingmen, isEmpty);
+    });
   });
 
   group('世界尺寸', () {

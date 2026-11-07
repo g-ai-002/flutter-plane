@@ -96,7 +96,7 @@ void main() {
       expect(kinds, contains(EnemyKind.fortress));
     });
 
-    test('Boss 形态逐次交替，生成请求带上形态', () {
+    test('Boss 形态按三种形态轮换，生成请求带上形态', () {
       final director = WaveDirector(seed: 13);
       final variants = <BossVariant>[];
       for (var wave = 1; wave <= 12; wave++) {
@@ -119,7 +119,7 @@ void main() {
       expect(variants, [
         BossVariant.scorpion,
         BossVariant.leviathan,
-        BossVariant.scorpion,
+        BossVariant.wraith,
       ]);
     });
   });

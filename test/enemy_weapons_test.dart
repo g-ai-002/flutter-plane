@@ -173,5 +173,83 @@ void main() {
         greaterThan(build(BossVariant.scorpion).maxHp),
       );
     });
+
+    test('幽影方舟四段弹幕使用相位弹并留出缺口', () {
+      final boss = Enemy(
+        kind: EnemyKind.boss,
+        pattern: EnemyPattern.hover,
+        x: 200,
+        y: 90,
+        difficulty: 1,
+        variant: BossVariant.wraith,
+      )..entered = true;
+      const target = Offset(200, 600);
+      final counts = [
+        for (var cycle = 0; cycle < 4; cycle++)
+          buildBossBarrage(
+            boss: boss,
+            target: target,
+            cycle: cycle,
+            speed: 160,
+            variant: BossVariant.wraith,
+          ).length,
+      ];
+
+      expect(counts, [15, 8, 16, 7]);
+      for (var cycle = 0; cycle < 4; cycle++) {
+        final shots = buildBossBarrage(
+          boss: boss,
+          target: target,
+          cycle: cycle,
+          speed: 160,
+          variant: BossVariant.wraith,
+        );
+        expect(shots.every((shot) => shot.kind == BulletKind.phase), isTrue);
+        expect(shots.every((shot) => shot.radius == 4.4), isTrue);
+        expect(shots.every((shot) => !shot.fromPlayer), isTrue);
+      }
+
+      final ring = buildBossBarrage(
+        boss: boss,
+        target: target,
+        cycle: 2,
+        speed: 160,
+        variant: BossVariant.wraith,
+      );
+      // 正下方（约 π/2）留出扇区缺口，没有子弹直冲玩家。
+      expect(
+        ring.any(
+          (shot) =>
+              math.atan2(shot.vy, shot.vx) > 1.2 &&
+              math.atan2(shot.vy, shot.vx) < 1.95,
+        ),
+        isFalse,
+      );
+
+      final wall = buildBossBarrage(
+        boss: boss,
+        target: target,
+        cycle: 3,
+        speed: 160,
+        variant: BossVariant.wraith,
+      );
+      expect(wall.every((shot) => shot.vy > 0), isTrue);
+      expect(wall.map((shot) => shot.x).toSet(), hasLength(7));
+    });
+
+    test('幽影方舟血量高于另外两种形态', () {
+      Enemy build(BossVariant variant) => Enemy(
+        kind: EnemyKind.boss,
+        pattern: EnemyPattern.hover,
+        x: 200,
+        y: 90,
+        difficulty: 2,
+        variant: variant,
+      );
+      expect(
+        build(BossVariant.wraith).maxHp,
+        greaterThan(build(BossVariant.leviathan).maxHp),
+      );
+    });
   });
 }
