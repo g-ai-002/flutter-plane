@@ -7,6 +7,7 @@ import '../game/battle/battle_controller.dart';
 import '../game/battle/battle_types.dart';
 import '../game/logic_rate.dart';
 import '../services/sound_service.dart';
+import 'battle_visuals.dart';
 
 /// 战场渲染组件：按固定步长推进逻辑，用 Canvas 绘制星空、战机、弹幕与爆炸。
 ///
@@ -46,13 +47,6 @@ class BattleFieldComponent extends PositionComponent {
     Rect.fromCenter(center: Offset.zero, width: 21, height: 21),
     const Radius.circular(5),
   );
-
-  Path? _playerPath;
-  Path? _scoutPath;
-  Path? _fighterPath;
-  Path? _bomberPath;
-  Path? _elitePath;
-  Path? _bossPath;
 
   @override
   void update(double dt) {
@@ -212,16 +206,16 @@ class BattleFieldComponent extends PositionComponent {
     canvas.drawPath(flame, _fill);
     canvas.restore();
 
-    final path = _playerPath ??= _buildPlayerPath();
-    _fill.color = const Color(0xFF10306B);
+    final path = playerHullPath;
+    _fill.color = kPlayerHullShadow;
     canvas.save();
     canvas.scale(1.18);
     canvas.drawPath(path, _fill);
     canvas.restore();
-    _fill.color = const Color(0xFF2FA8FF);
+    _fill.color = kPlayerHull;
     canvas.drawPath(path, _fill);
     _stroke
-      ..color = const Color(0xFF9BE8FF)
+      ..color = kPlayerTrim
       ..strokeWidth = 1.5;
     canvas.drawPath(path, _stroke);
 
@@ -256,25 +250,12 @@ class BattleFieldComponent extends PositionComponent {
     canvas.restore();
   }
 
-  Path _buildPlayerPath() => Path()
-    ..moveTo(0, -17)
-    ..lineTo(4.5, -6)
-    ..lineTo(14, 3)
-    ..lineTo(14, 8.5)
-    ..lineTo(5, 7)
-    ..lineTo(3.2, 12)
-    ..lineTo(-3.2, 12)
-    ..lineTo(-5, 7)
-    ..lineTo(-14, 8.5)
-    ..lineTo(-14, 3)
-    ..lineTo(-4.5, -6)
-    ..close();
-
   // ------------------------------------------------------------ 敌机
 
   void _drawEnemies(Canvas canvas) {
     for (final enemy in controller.enemies) {
       if (enemy.dead) continue;
+      final visual = kEnemyVisuals[enemy.kind]!;
       canvas.save();
       canvas.translate(enemy.x, enemy.y);
       final appear = (enemy.age / 0.28).clamp(0.0, 1.0);
@@ -282,37 +263,28 @@ class BattleFieldComponent extends PositionComponent {
       final hit = enemy.hitFlash > 0;
 
       if (enemy.isBoss) {
-        _drawBoss(canvas, enemy, appear, pulse, hit);
+        _drawBoss(canvas, enemy, visual, appear, pulse, hit);
         canvas.restore();
         continue;
       }
 
-      final path = switch (enemy.kind) {
-        EnemyKind.scout => _scoutPath ??= _buildScoutPath(),
-        EnemyKind.fighter => _fighterPath ??= _buildFighterPath(),
-        EnemyKind.bomber => _bomberPath ??= _buildBomberPath(),
-        EnemyKind.elite => _elitePath ??= _buildElitePath(),
-        EnemyKind.boss => _buildElitePath(),
-      };
-
-      final base = hit ? Colors.white : _hullColor(enemy.kind);
-      _fill.color = base.withValues(alpha: appear);
-      canvas.drawPath(path, _fill);
+      _fill.color = (hit ? Colors.white : visual.hull).withValues(
+        alpha: appear,
+      );
+      canvas.drawPath(visual.path, _fill);
       _stroke
-        ..color = (hit ? Colors.white : _trimColor(enemy.kind)).withValues(
-          alpha: appear,
-        )
-        ..strokeWidth = enemy.kind == EnemyKind.elite ? 2 : 1.4;
-      canvas.drawPath(path, _stroke);
+        ..color = (hit ? Colors.white : visual.trim).withValues(alpha: appear)
+        ..strokeWidth = visual.strokeWidth;
+      canvas.drawPath(visual.path, _stroke);
 
       // 核心与引擎光
-      _fill.color = _coreColor(enemy.kind).withValues(alpha: appear * pulse);
+      _fill.color = visual.core.withValues(alpha: appear * pulse);
       canvas.drawCircle(
-        Offset(0, enemy.kind == EnemyKind.elite ? 2 : 0),
-        enemy.kind == EnemyKind.elite ? 5.5 : 3.2,
+        Offset(0, visual.coreOffsetY),
+        visual.coreRadius,
         _fill,
       );
-      _glow.color = const Color(0xFFFF8A5C).withValues(alpha: appear * 0.8);
+      _glow.color = kEnemyEngineGlow.withValues(alpha: appear * 0.8);
       canvas.drawCircle(Offset(0, enemy.radius * 0.62), 2.4, _glow);
       canvas.restore();
     }
@@ -321,37 +293,32 @@ class BattleFieldComponent extends PositionComponent {
   void _drawBoss(
     Canvas canvas,
     Enemy boss,
+    EnemyVisual visual,
     double appear,
     double pulse,
     bool hit,
   ) {
-    final path = _bossPath ??= _buildBossPath();
-    _fill.color = (hit ? Colors.white : const Color(0xFF3A1F4F)).withValues(
-      alpha: appear,
-    );
-    canvas.drawPath(path, _fill);
+    _fill.color = (hit ? Colors.white : visual.hull).withValues(alpha: appear);
+    canvas.drawPath(visual.path, _fill);
     _stroke
-      ..color = (hit ? Colors.white : const Color(0xFFFF6B9D)).withValues(
-        alpha: appear,
-      )
-      ..strokeWidth = 2.2;
-    canvas.drawPath(path, _stroke);
+      ..color = (hit ? Colors.white : visual.trim).withValues(alpha: appear)
+      ..strokeWidth = visual.strokeWidth;
+    canvas.drawPath(visual.path, _stroke);
 
     // 侧翼炮塔
-    _fill.color = const Color(0xFF6B2E63).withValues(alpha: appear);
+    _fill.color = kBossTurret.withValues(alpha: appear);
     for (final side in [-1, 1]) {
       canvas.drawCircle(Offset(side * 30.0, 8), 6.5, _fill);
       _stroke
-        ..color = const Color(0xFFFF8FB8).withValues(alpha: appear)
+        ..color = kBossTrim.withValues(alpha: appear)
         ..strokeWidth = 1.2;
       canvas.drawCircle(Offset(side * 30.0, 8), 6.5, _stroke);
     }
     // 核心
-    _glow.color = const Color(0xFFFFD54F)
-        .withValues(alpha: appear * pulse * 0.35);
+    _glow.color = kBossCoreGlow.withValues(alpha: appear * pulse * 0.35);
     canvas.drawCircle(Offset.zero, 20, _glow);
-    _fill.color = const Color(0xFFFFD54F).withValues(alpha: appear * pulse);
-    canvas.drawCircle(Offset.zero, 9, _fill);
+    _fill.color = visual.core.withValues(alpha: appear * pulse);
+    canvas.drawCircle(Offset.zero, visual.coreRadius, _fill);
     _fill.color = Colors.white.withValues(alpha: appear * 0.9);
     canvas.drawCircle(Offset.zero, 4, _fill);
 
@@ -365,111 +332,24 @@ class BattleFieldComponent extends PositionComponent {
     }
   }
 
-  Path _buildScoutPath() => Path()
-    ..moveTo(0, 12)
-    ..lineTo(-11, -3)
-    ..lineTo(-4, -7)
-    ..lineTo(0, -3)
-    ..lineTo(4, -7)
-    ..lineTo(11, -3)
-    ..close();
-
-  Path _buildFighterPath() => Path()
-    ..moveTo(0, 15)
-    ..lineTo(-6, 3)
-    ..lineTo(-16, -3)
-    ..lineTo(-9, -9)
-    ..lineTo(0, -5)
-    ..lineTo(9, -9)
-    ..lineTo(16, -3)
-    ..lineTo(6, 3)
-    ..close();
-
-  Path _buildBomberPath() => Path()
-    ..moveTo(0, 20)
-    ..lineTo(-10, 10)
-    ..lineTo(-20, 3)
-    ..lineTo(-14, -8)
-    ..lineTo(0, -12)
-    ..lineTo(14, -8)
-    ..lineTo(20, 3)
-    ..lineTo(10, 10)
-    ..close();
-
-  Path _buildElitePath() => Path()
-    ..moveTo(0, 25)
-    ..lineTo(-9, 11)
-    ..lineTo(-23, 4)
-    ..lineTo(-16, -7)
-    ..lineTo(-20, -16)
-    ..lineTo(0, -11)
-    ..lineTo(20, -16)
-    ..lineTo(16, -7)
-    ..lineTo(23, 4)
-    ..lineTo(9, 11)
-    ..close();
-
-  Path _buildBossPath() => Path()
-    ..moveTo(0, 38)
-    ..lineTo(-15, 27)
-    ..lineTo(-37, 19)
-    ..lineTo(-46, 3)
-    ..lineTo(-30, -5)
-    ..lineTo(-38, -22)
-    ..lineTo(-12, -14)
-    ..lineTo(0, -27)
-    ..lineTo(12, -14)
-    ..lineTo(38, -22)
-    ..lineTo(30, -5)
-    ..lineTo(46, 3)
-    ..lineTo(37, 19)
-    ..lineTo(15, 27)
-    ..close();
-
-  Color _hullColor(EnemyKind kind) => switch (kind) {
-    EnemyKind.scout => const Color(0xFF6E2431),
-    EnemyKind.fighter => const Color(0xFF7C2A33),
-    EnemyKind.bomber => const Color(0xFF5E1F3A),
-    EnemyKind.elite => const Color(0xFF5A1B4C),
-    EnemyKind.boss => const Color(0xFF3A1F4F),
-  };
-
-  Color _trimColor(EnemyKind kind) => switch (kind) {
-    EnemyKind.scout => const Color(0xFFFF9E6B),
-    EnemyKind.fighter => const Color(0xFFFF7A59),
-    EnemyKind.bomber => const Color(0xFFFF6B8B),
-    EnemyKind.elite => const Color(0xFFFF6BC4),
-    EnemyKind.boss => const Color(0xFFFF6B9D),
-  };
-
-  Color _coreColor(EnemyKind kind) => switch (kind) {
-    EnemyKind.scout => const Color(0xFFFFD166),
-    EnemyKind.fighter => const Color(0xFFFFB347),
-    EnemyKind.bomber => const Color(0xFFFF8A80),
-    EnemyKind.elite => const Color(0xFFFF8FD1),
-    EnemyKind.boss => const Color(0xFFFFD54F),
-  };
-
   // ------------------------------------------------------------ 弹幕
 
   void _drawBullets(Canvas canvas) {
     for (final bullet in controller.playerBullets) {
       canvas.save();
       canvas.translate(bullet.x, bullet.y);
-      _glow.color = const Color(0xFF4FD1FF).withValues(alpha: 0.28);
+      _glow.color = kPlayerBulletGlow.withValues(alpha: 0.28);
       canvas.drawCircle(Offset.zero, 8, _glow);
-      _fill.color = const Color(0xFFB7F4FF);
+      _fill.color = kPlayerBulletBody;
       canvas.drawRRect(_playerBulletBody, _fill);
       _fill.color = Colors.white;
       canvas.drawRRect(_playerBulletCore, _fill);
       canvas.restore();
     }
     for (final bullet in controller.enemyBullets) {
-      final color = switch (bullet.kind) {
-        1 => const Color(0xFFFF9E6B),
-        2 => const Color(0xFFFF6BC4),
-        _ => const Color(0xFFFFD54F),
-      };
+      final color =
+          kEnemyBulletColors[bullet.kind] ??
+          kEnemyBulletColors[BulletKind.boss]!;
       _glow.color = color.withValues(alpha: 0.26);
       canvas.drawCircle(Offset(bullet.x, bullet.y), bullet.radius * 2.4, _glow);
       _fill.color = color;
@@ -487,12 +367,7 @@ class BattleFieldComponent extends PositionComponent {
 
   void _drawPowerUps(Canvas canvas) {
     for (final item in controller.powerUps) {
-      final color = switch (item.kind) {
-        PowerUpKind.weapon => const Color(0xFFFFB347),
-        PowerUpKind.shield => const Color(0xFF7FD8FF),
-        PowerUpKind.bomb => const Color(0xFFFF6B6B),
-        PowerUpKind.star => const Color(0xFFFFD54F),
-      };
+      final color = kPowerUpColors[item.kind]!;
       canvas.save();
       canvas.translate(item.x, item.y);
       canvas.rotate(item.age * 1.8);
