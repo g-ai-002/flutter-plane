@@ -4,7 +4,7 @@
 覆盖 **Android / Windows / Web**，完全本地运行，无需联网。
 
 - 🎮 在线试玩：<http://192.168.31.120:8040/GTech/flutter-plane/>
-- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.3.1>
+- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.3.2>
 
 ## 特色
 
@@ -18,9 +18,10 @@
 - **自适应战场**：竖屏手机、折叠屏、平板与桌面窗口自动选择战场比例；HUD 悬浮在战场四周，
   提示变化不会挤压战场。
 - **批绘制与对象池**：星空、粒子、弹幕与爆炸碎片按颜色分桶合并绘制，粒子对象回收复用；
-  240 颗弹幕的三层外观只需 12 次以内的绘制调用，密集弹幕下帧率更稳。
-- **轻量每帧开销**：战场背景按尺寸录制为一张画面，每帧只提交一次；HUD 只在可见数值
-  变化时重建，Boss 血条走独立通知；音效与音乐合成放在后台 isolate，启动更跟手。
+  弹幕每帧只遍历两趟，240 颗弹幕的三层外观只需 12 次以内的绘制调用，密集弹幕下帧率更稳。
+- **轻量每帧开销**：战场背景按尺寸录制为一张画面，每帧只提交一次；文字排版与淡出颜色
+  分档缓存，尾焰路径预建，屏幕外特效直接裁剪；结算面板出现后暂停引擎，静止战场不再重绘；
+  HUD 只在可见数值变化时重建，Boss 血条走独立通知；音效与音乐合成放在后台 isolate。
 - **可调逻辑刷新率**：30Hz 省电 / 60Hz 均衡 / 120Hz 顺滑（默认 60Hz），固定步长推进，
   低帧率下也不会出现子弹穿透。
 - **本地记录**：最高分、最远波次与出击次数自动保存；日志按天写入用户目录，方便排查问题。
@@ -63,8 +64,8 @@ flutter run -d windows
 flutter run -d chrome
 ```
 
-当前包含 225 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制、僚机、三形态 Boss、波次、
-HUD 刷新、拾取规则、说明文案与三端界面。
+当前包含 230 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制、视口裁剪、僚机、
+三形态 Boss、波次、HUD 刷新、拾取规则、说明文案与三端界面。
 
 Android 配置：`minSdk=35`、`targetSdk=37`、`compileSdk=37`，仅构建 `arm64-v8a`。
 Windows 与 Web 平台文件由 CI 在构建时生成，仓库不存放 `windows/`、`web/` 目录。
@@ -98,9 +99,9 @@ test/                           单元测试与组件测试
 构建全部在 CI 完成。推送 Tag 不会自动出包，需要在 Actions 中手动运行 `build.yml` 并选定该 Tag：
 
 ```shell
-git tag -a v0.3.1 -m "v0.3.1: 收敛拾取、HUD、碰撞与说明文案的重复实现"
-git push origin v0.3.1
-tea actions workflows dispatch build.yml --ref refs/tags/v0.3.1 --follow
+git tag -a v0.3.2 -m "v0.3.2: 压低弹幕绘制与逻辑步的剩余热点"
+git push origin v0.3.2
+tea actions workflows dispatch build.yml --ref refs/tags/v0.3.2 --follow
 ```
 
 产物包含 Android APK（aarch64）、Windows ZIP（x86_64）与 Web 压缩包，并发布到 Releases 与 Pages。
@@ -109,8 +110,8 @@ tea actions workflows dispatch build.yml --ref refs/tags/v0.3.1 --follow
 
 | 版本 | 说明 |
 | --- | --- |
+| v0.3.2 | 性能版本：弹幕两趟收集、文字与颜色分档缓存、视口裁剪、结算停引擎 |
 | v0.3.1 | 重构版本：拾取规则、HUD 条目、扫掠判定、战场边界与说明文案收敛到单一出处 |
 | v0.3.0 | 内容版本：僚机护航、幽影方舟 Boss 与相位弹幕、六级火力 |
 | v0.2.2 | 性能版本：背景画面缓存、碎片批绘制、HUD 刷新分层、音频合成下放后台 |
 | v0.2.1 | 重构版本：集中战场数值与 Boss 节奏，合并 HUD、绘制、碰撞与按键的重复实现 |
-| v0.2.0 | 内容版本：新增截击机/自爆无人机/重装堡垒、深渊利维坦 Boss 与急速射击 |
