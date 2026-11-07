@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'battle_tuning.dart';
 import 'battle_types.dart';
 
 Bullet _enemyBullet({
@@ -76,6 +77,48 @@ List<Bullet> buildAimedVolley({
         kind: kind,
       ),
   ];
+}
+
+/// 推进普通敌机的开火计时，把本步到期的弹幕追加到 [out]。
+///
+/// 开火条件、难度换算与齐射方式集中在这里，战斗控制器只负责判断敌机
+/// 是否处在可开火的纵向区间。
+void updateEnemyFire(
+  Enemy enemy,
+  double dt, {
+  required int wave,
+  required double targetX,
+  required double targetY,
+  required List<Bullet> out,
+}) {
+  final spec = enemy.spec;
+  if (spec.fireCount <= 0) return;
+  enemy.fireCooldown -= dt;
+  if (enemy.fireCooldown > 0) return;
+  enemy.fireCooldown = spec.fireInterval * enemyFireIntervalScale(wave);
+  final origin = Offset(enemy.x, enemy.y);
+  if (spec.fireMode == EnemyFireMode.radial) {
+    out.addAll(
+      buildRadialVolley(
+        origin: origin,
+        count: spec.fireCount,
+        speed: spec.bulletSpeed,
+        kind: spec.bulletKind,
+        phase: enemy.age * 0.45,
+      ),
+    );
+    return;
+  }
+  out.addAll(
+    buildAimedVolley(
+      origin: origin,
+      target: Offset(targetX, targetY),
+      speed: spec.bulletSpeed,
+      count: spec.fireCount,
+      spread: spec.fireSpread,
+      kind: spec.bulletKind,
+    ),
+  );
 }
 
 /// Boss 弹幕入口：按形态选择弹幕库，三种 Boss 共享同一个四段循环节奏。

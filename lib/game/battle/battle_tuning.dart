@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'battle_types.dart';
 
@@ -33,6 +34,36 @@ const double kPowerUpCullMargin = 30;
 /// 敌机开始与停止开火的纵向区间。
 const double kEnemyFireMinY = 6;
 const double kEnemyFireMaxRatio = 0.78;
+
+/// 把玩家战机收拢回可活动范围；返回是否发生了位移。
+///
+/// 拖动、键盘与窗口缩放三条路径共用同一份边界，避免各自写一套 clamp
+/// 之后出现「拖动能贴边、键盘却不行」的不一致。
+bool clampPlayerToArena(Player player, Size world) {
+  final x = clampDouble(
+    player.x,
+    kPlayerSideMargin,
+    world.width - kPlayerSideMargin,
+  );
+  final y = clampDouble(
+    player.y,
+    kPlayerTopLimit,
+    world.height - kPlayerBottomMargin,
+  );
+  final moved = x != player.x || y != player.y;
+  player.x = x;
+  player.y = y;
+  return moved;
+}
+
+/// 把敌机收拢回战场的横向范围。
+void clampEnemyToArena(Enemy enemy, Size world) {
+  enemy.x = clampDouble(
+    enemy.x,
+    kEnemySideMargin,
+    world.width - kEnemySideMargin,
+  );
+}
 
 // ---------------------------------------------------------------- 难度曲线
 

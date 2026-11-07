@@ -11,6 +11,7 @@ import 'boss_catalog.dart';
 import 'bullet_field.dart';
 import 'enemy_motion.dart';
 import 'enemy_weapons.dart';
+import 'pickup_rules.dart';
 import 'player_weapon.dart';
 import 'wave_director.dart';
 
@@ -174,16 +175,9 @@ class BattleController extends ChangeNotifier {
   /// 指针拖动：按手指位移平移战机，越界自动收拢。
   void movePlayerBy(Offset delta) {
     if (phase != BattlePhase.playing || !player.alive) return;
-    player.x = clampDouble(
-      player.x + delta.dx,
-      kPlayerSideMargin,
-      _size.width - kPlayerSideMargin,
-    );
-    player.y = clampDouble(
-      player.y + delta.dy,
-      kPlayerTopLimit,
-      _size.height - kPlayerBottomMargin,
-    );
+    player.x += delta.dx;
+    player.y += delta.dy;
+    clampPlayerToArena(player, _size);
     player.tilt = clampDouble(player.tilt + delta.dx * 0.03, -1, 1);
   }
 
@@ -224,22 +218,10 @@ class BattleController extends ChangeNotifier {
     if (size.width <= 0 || size.height <= 0) return;
     final scaleX = size.width / _size.width;
     _size = size;
-    player.x = clampDouble(
-      player.x * scaleX,
-      kPlayerSideMargin,
-      size.width - kPlayerSideMargin,
-    );
-    player.y = clampDouble(
-      player.y,
-      kPlayerTopLimit,
-      size.height - kPlayerBottomMargin,
-    );
+    player.x *= scaleX;
+    clampPlayerToArena(player, size);
     for (final enemy in enemies) {
-      enemy.x = clampDouble(
-        enemy.x,
-        kEnemySideMargin,
-        size.width - kEnemySideMargin,
-      );
+      clampEnemyToArena(enemy, size);
     }
     _effects.resetStars(_size);
     notifyListeners();
@@ -325,16 +307,9 @@ class BattleController extends ChangeNotifier {
     p.shield = math.max(0, p.shield - dt);
     p.rapid = math.max(0, p.rapid - dt);
     if (_moveAxis != Offset.zero) {
-      p.x = clampDouble(
-        p.x + _moveAxis.dx * kPlayerSpeed * dt,
-        kPlayerSideMargin,
-        _size.width - kPlayerSideMargin,
-      );
-      p.y = clampDouble(
-        p.y + _moveAxis.dy * kPlayerSpeed * dt,
-        kPlayerTopLimit,
-        _size.height - kPlayerBottomMargin,
-      );
+      p.x += _moveAxis.dx * kPlayerSpeed * dt;
+      p.y += _moveAxis.dy * kPlayerSpeed * dt;
+      clampPlayerToArena(p, _size);
       p.tilt += (_moveAxis.dx - p.tilt) * math.min(1, dt * 9);
     } else {
       p.tilt += (0 - p.tilt) * math.min(1, dt * 7);
@@ -437,44 +412,19 @@ class BattleController extends ChangeNotifier {
           enemy.dead = true;
         } else if (enemy.y > kEnemyFireMinY &&
             enemy.y < _size.height * kEnemyFireMaxRatio) {
-          _updateEnemyFire(enemy, dt);
+          updateEnemyFire(
+            enemy,
+            dt,
+            wave: wave,
+            targetX: player.x,
+            targetY: player.y,
+            out: enemyBullets,
+          );
         }
       }
       if (!enemy.dead) enemies[write++] = enemy;
     }
     if (write < enemies.length) enemies.length = write;
-  }
-
-  void _updateEnemyFire(Enemy enemy, double dt) {
-    final spec = enemy.spec;
-    if (spec.fireCount <= 0) return;
-    enemy.fireCooldown -= dt;
-    if (enemy.fireCooldown > 0) return;
-    final scale = enemyFireIntervalScale(wave);
-    enemy.fireCooldown = spec.fireInterval * scale;
-    final origin = Offset(enemy.x, enemy.y);
-    if (spec.fireMode == EnemyFireMode.radial) {
-      enemyBullets.addAll(
-        buildRadialVolley(
-          origin: origin,
-          count: spec.fireCount,
-          speed: spec.bulletSpeed,
-          kind: spec.bulletKind,
-          phase: enemy.age * 0.45,
-        ),
-      );
-      return;
-    }
-    enemyBullets.addAll(
-      buildAimedVolley(
-        origin: origin,
-        target: Offset(player.x, player.y),
-        speed: spec.bulletSpeed,
-        count: spec.fireCount,
-        spread: spec.fireSpread,
-        kind: spec.bulletKind,
-      ),
-    );
   }
 
   void _updateBoss(Enemy boss, double dt) {
@@ -609,69 +559,20 @@ class BattleController extends ChangeNotifier {
   void _collectPowerUp(PowerUp item) {
     item.dead = true;
     final position = Offset(item.x, item.y);
-    switch (item.kind) {
-      case PowerUpKind.weapon:
-        if (player.weaponLevel < Player.maxWeaponLevel) {
-          player.weaponLevel++;
-          _effects.addPopup(
-            ScorePopup(
-              x: item.x,
-              y: item.y,
-              text: '火力 ${player.weaponLevel} 级',
-            ),
-          );
-        } else {
-          score += kWeaponCapScore;
-          _effects.addPopup(
-            ScorePopup(x: item.x, y: item.y, text: '+$kWeaponCapScore'),
-          );
-        }
-      case PowerUpKind.shield:
-        player.shield = math.max(player.shield, kShieldPickupDuration);
-        _effects.addPopup(
-          ScorePopup(x: item.x, y: item.y, text: '护盾展开', color: 0xFF7FD8FF),
-        );
-      case PowerUpKind.bomb:
-        if (player.bombs < Player.maxBombs) {
-          player.bombs++;
-          _effects.addPopup(ScorePopup(x: item.x, y: item.y, text: '炸弹 +1'));
-        } else {
-          score += kBombCapScore;
-          _effects.addPopup(
-            ScorePopup(x: item.x, y: item.y, text: '+$kBombCapScore'),
-          );
-        }
-      case PowerUpKind.star:
-        final gain = kStarPickupScore * multiplier;
-        score += gain;
-        _effects.addPopup(ScorePopup(x: item.x, y: item.y, text: '+$gain'));
-      case PowerUpKind.rapid:
-        player.rapid = math.min(
-          kRapidMaxDuration,
-          player.rapid + kRapidPickupDuration,
-        );
-        _effects.addPopup(
-          ScorePopup(x: item.x, y: item.y, text: '急速射击', color: 0xFFFFE082),
-        );
-      case PowerUpKind.wingman:
-        if (player.wingmen < Player.maxWingmen) {
-          player.wingmen++;
-          wingmen.add(
-            Wingman(
-              side: player.wingmen.isOdd ? -1 : 1,
-              x: player.x,
-              y: player.y,
-            ),
-          );
-          _effects.addPopup(
-            ScorePopup(x: item.x, y: item.y, text: '僚机就位', color: 0xFF9BFFEA),
-          );
-        } else {
-          score += kWingmanCapScore;
-          _effects.addPopup(
-            ScorePopup(x: item.x, y: item.y, text: '+$kWingmanCapScore'),
-          );
-        }
+    final outcome = applyPickup(item.kind, player, multiplier: multiplier);
+    score += outcome.score;
+    _effects.addPopup(
+      ScorePopup(
+        x: item.x,
+        y: item.y,
+        text: outcome.text,
+        color: outcome.color,
+      ),
+    );
+    if (outcome.spawnWingman) {
+      wingmen.add(
+        Wingman(side: player.wingmen.isOdd ? -1 : 1, x: player.x, y: player.y),
+      );
     }
     _effects.burst(
       position,
@@ -700,27 +601,15 @@ class BattleController extends ChangeNotifier {
     double centerX,
     double centerY,
     double reach,
-  ) {
-    final toX = bullet.x;
-    final toY = bullet.y;
-    final fromX = toX - bullet.vx * dt;
-    final fromY = toY - bullet.vy * dt;
-    if (centerX + reach < math.min(fromX, toX) ||
-        centerX - reach > math.max(fromX, toX) ||
-        centerY + reach < math.min(fromY, toY) ||
-        centerY - reach > math.max(fromY, toY)) {
-      return false;
-    }
-    return segmentHitsCircleXY(
-      centerX: centerX,
-      centerY: centerY,
-      radius: reach,
-      fromX: fromX,
-      fromY: fromY,
-      toX: toX,
-      toY: toY,
-    );
-  }
+  ) => sweepHitsCircleXY(
+    centerX: centerX,
+    centerY: centerY,
+    reach: reach,
+    fromX: bullet.x - bullet.vx * dt,
+    fromY: bullet.y - bullet.vy * dt,
+    toX: bullet.x,
+    toY: bullet.y,
+  );
 
   void _collidePlayerShots(double dt) {
     for (final bullet in playerBullets) {

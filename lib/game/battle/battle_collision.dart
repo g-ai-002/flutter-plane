@@ -78,3 +78,32 @@ Offset sweepStart({
   required Offset velocity,
   required double dt,
 }) => position - velocity * dt;
+
+/// 带包围盒预筛的扫掠检测：线段包围盒都碰不到圆时直接返回 false。
+///
+/// 弹幕密集时绝大多数子弹离目标很远，先做四次比较可以省掉线段投影。
+bool sweepHitsCircleXY({
+  required double centerX,
+  required double centerY,
+  required double reach,
+  required double fromX,
+  required double fromY,
+  required double toX,
+  required double toY,
+}) {
+  if (centerX + reach < (fromX < toX ? fromX : toX) ||
+      centerX - reach > (fromX > toX ? fromX : toX) ||
+      centerY + reach < (fromY < toY ? fromY : toY) ||
+      centerY - reach > (fromY > toY ? fromY : toY)) {
+    return false;
+  }
+  return segmentHitsCircleXY(
+    centerX: centerX,
+    centerY: centerY,
+    radius: reach,
+    fromX: fromX,
+    fromY: fromY,
+    toX: toX,
+    toY: toY,
+  );
+}
