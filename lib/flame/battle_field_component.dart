@@ -34,6 +34,19 @@ class BattleFieldComponent extends PositionComponent {
   Paint? _nebulaTopLeft;
   Paint? _nebulaBottomRight;
 
+  static final RRect _playerBulletBody = RRect.fromRectAndRadius(
+    Rect.fromCenter(center: Offset.zero, width: 6, height: 14),
+    const Radius.circular(3),
+  );
+  static final RRect _playerBulletCore = RRect.fromRectAndRadius(
+    Rect.fromCenter(center: Offset.zero, width: 2.2, height: 8),
+    const Radius.circular(1.1),
+  );
+  static final RRect _powerUpBox = RRect.fromRectAndRadius(
+    Rect.fromCenter(center: Offset.zero, width: 21, height: 21),
+    const Radius.circular(5),
+  );
+
   Path? _playerPath;
   Path? _scoutPath;
   Path? _fighterPath;
@@ -441,32 +454,15 @@ class BattleFieldComponent extends PositionComponent {
 
   void _drawBullets(Canvas canvas) {
     for (final bullet in controller.playerBullets) {
+      canvas.save();
+      canvas.translate(bullet.x, bullet.y);
       _glow.color = const Color(0xFF4FD1FF).withValues(alpha: 0.28);
-      canvas.drawCircle(Offset(bullet.x, bullet.y), 8, _glow);
+      canvas.drawCircle(Offset.zero, 8, _glow);
       _fill.color = const Color(0xFFB7F4FF);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(bullet.x, bullet.y),
-            width: 6,
-            height: 14,
-          ),
-          const Radius.circular(3),
-        ),
-        _fill,
-      );
+      canvas.drawRRect(_playerBulletBody, _fill);
       _fill.color = Colors.white;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(bullet.x, bullet.y),
-            width: 2.2,
-            height: 8,
-          ),
-          const Radius.circular(1.1),
-        ),
-        _fill,
-      );
+      canvas.drawRRect(_playerBulletCore, _fill);
+      canvas.restore();
     }
     for (final bullet in controller.enemyBullets) {
       final color = switch (bullet.kind) {
@@ -503,23 +499,11 @@ class BattleFieldComponent extends PositionComponent {
       _fill.color = color.withValues(alpha: 0.18);
       canvas.drawCircle(Offset.zero, 17, _fill);
       _fill.color = const Color(0xFF101A33);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset.zero, width: 21, height: 21),
-          const Radius.circular(5),
-        ),
-        _fill,
-      );
+      canvas.drawRRect(_powerUpBox, _fill);
       _stroke
         ..color = color
         ..strokeWidth = 1.8;
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromCenter(center: Offset.zero, width: 21, height: 21),
-          const Radius.circular(5),
-        ),
-        _stroke,
-      );
+      canvas.drawRRect(_powerUpBox, _stroke);
       canvas.restore();
 
       final label = kPowerUpLabels[item.kind]![0];
