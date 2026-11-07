@@ -107,5 +107,68 @@ void main() {
         circlesOverlap(const Offset(0, 0), 10, const Offset(15, 0), 5),
       );
     });
+
+    test('扫掠预筛：远处目标直接排除', () {
+      expect(
+        sweepHitsCircleXY(
+          centerX: 400,
+          centerY: 600,
+          reach: 11,
+          fromX: 200,
+          fromY: 100,
+          toX: 200,
+          toY: 140,
+        ),
+        isFalse,
+      );
+    });
+
+    test('扫掠预筛后仍做线段精确判定', () {
+      expect(
+        sweepHitsCircleXY(
+          centerX: 200,
+          centerY: 200,
+          reach: 11,
+          fromX: 200,
+          fromY: 240,
+          toX: 200,
+          toY: 160,
+        ),
+        isTrue,
+      );
+      // 包围盒覆盖圆心，但线段从圆外斜穿而过，最近距离大于半径。
+      expect(
+        sweepHitsCircleXY(
+          centerX: 200,
+          centerY: 200,
+          reach: 11,
+          fromX: 210,
+          fromY: 160,
+          toX: 250,
+          toY: 260,
+        ),
+        isFalse,
+      );
+    });
+
+    test('扫掠判定与带 Offset 的精确判定一致', () {
+      expect(
+        sweepHitsCircleXY(
+          centerX: 200,
+          centerY: 200,
+          reach: 14,
+          fromX: 200,
+          fromY: 260,
+          toX: 200,
+          toY: 150,
+        ),
+        segmentHitsCircle(
+          center: const Offset(200, 200),
+          radius: 14,
+          from: const Offset(200, 260),
+          to: const Offset(200, 150),
+        ),
+      );
+    });
   });
 }
