@@ -42,7 +42,7 @@ void main() {
     expect(find.text('12,345'), findsOneWidget);
     expect(find.text('6'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
-    expect(find.textContaining('v0.1.0'), findsOneWidget);
+    expect(find.textContaining('v0.1.1'), findsOneWidget);
   });
 
   testWidgets('玩法说明弹窗展示操作与规则', (tester) async {

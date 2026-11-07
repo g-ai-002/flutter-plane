@@ -4,7 +4,7 @@
 覆盖 **Android / Windows / Web**，完全本地运行，无需联网。
 
 - 🎮 在线试玩：<http://192.168.31.120:8040/GTech/flutter-plane/>
-- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.1.0>
+- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.1.1>
 
 ## 特色
 
@@ -55,6 +55,8 @@ flutter run -d windows
 flutter run -d chrome
 ```
 
+当前包含 121 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、波次与三端界面。
+
 Android 配置：`minSdk=35`、`targetSdk=37`、`compileSdk=37`，仅构建 `arm64-v8a`。
 Windows 与 Web 平台文件由 CI 在构建时生成，仓库不存放 `windows/`、`web/` 目录。
 
@@ -63,8 +65,8 @@ Windows 与 Web 平台文件由 CI 在构建时生成，仓库不存放 `windows
 ```
 lib/
   app.dart / main.dart          应用入口与主题、生命周期
-  flame/                        Flame 游戏与战场矢量渲染
-  game/battle/                  战斗逻辑：实体、波次、控制器、视口
+  flame/                        Flame 游戏、战场渲染与敌机视觉表
+  game/battle/                  战斗逻辑：实体、波次、弹道、移动、碰撞、特效
   game/logic_rate.dart          30/60/120Hz 逻辑速率与固定步长
   pages/                        首页、战斗页、设置页与悬浮 HUD
   providers/                    用户偏好
@@ -87,9 +89,9 @@ test/                           单元测试与组件测试
 构建全部在 CI 完成。推送 Tag 不会自动出包，需要在 Actions 中手动运行 `build.yml` 并选定该 Tag：
 
 ```shell
-git tag -a v0.1.0 -m "v0.1.0: 首个可玩版本"
-git push origin v0.1.0
-tea actions workflows dispatch build.yml --ref refs/tags/v0.1.0 --follow
+git tag -a v0.1.1 -m "v0.1.1: 重构战斗与渲染模块"
+git push origin v0.1.1
+tea actions workflows dispatch build.yml --ref refs/tags/v0.1.1 --follow
 ```
 
 产物包含 Android APK（aarch64）、Windows ZIP（x86_64）与 Web 压缩包，并发布到 Releases 与 Pages。
@@ -98,4 +100,5 @@ tea actions workflows dispatch build.yml --ref refs/tags/v0.1.0 --follow
 
 | 版本 | 说明 |
 | --- | --- |
+| v0.1.1 | 重构版本：拆分战斗模块、弹道与敌机配置化、渲染查表，玩法不变 |
 | v0.1.0 | 首个可玩版本：完整弹幕战斗、四类敌机与 Boss、程序化音画、三端发布 |
