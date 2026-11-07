@@ -4,13 +4,13 @@
 覆盖 **Android / Windows / Web**，完全本地运行，无需联网。
 
 - 🎮 在线试玩：<http://192.168.31.120:8040/GTech/flutter-plane/>
-- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.1.2>
+- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.2.0>
 
 ## 特色
 
-- **完整战斗循环**：五级弹道光束、护盾、全屏炸弹、连击倍率（最高 ×4）与波次递增难度。
-- **四类敌机 + Boss**：侦察机、战斗机、轰炸机、精英机各有移动与开火方式；每 4 波迎战 Boss 母舰，
-  四种弹幕循环并带独立血条。
+- **完整战斗循环**：五级弹道光束、护盾、全屏炸弹、急速射击、连击倍率（最高 ×4）与波次递增难度。
+- **七类敌机 + 双形态 Boss**：侦察机、战斗机、轰炸机、精英机、截击机、自爆无人机与重装堡垒
+  各有移动与开火方式；每 4 波迎战 Boss，赤蝎母舰与深渊利维坦交替登场，各四段弹幕并带独立血条。
 - **纯粹的程序化视听**：星空、战机、弹幕、爆炸全部用 Canvas 矢量绘制；九种音效与 8 秒电子循环
   背景音乐在运行时合成，仓库不存放图片、字体与音频文件。
 - **自适应战场**：竖屏手机、折叠屏、平板与桌面窗口自动选择战场比例；HUD 悬浮在战场四周，
@@ -34,8 +34,8 @@
 
 1. 击破敌机累积连击，12 / 30 / 60 连击分别提升分数倍率，停火 2.6 秒后连击归零。
 2. 拾取补给：**火力**（提升弹道等级）、**护盾**（抵挡一次伤害）、**炸弹**（补充全屏炸弹）、
-   **分数**（直接加分）。
-3. 每 4 波出现 Boss 母舰；击破后掉落三份补给。
+   **分数**（直接加分）、**急速**（限时提升射速）。
+3. 每 4 波出现 Boss，赤蝎母舰与深渊利维坦交替登场；击破后掉落三份补给。
 4. 生命耗尽即战斗结束，最高分与本局波次自动保存。
 
 ## 技术栈
@@ -57,7 +57,7 @@ flutter run -d windows
 flutter run -d chrome
 ```
 
-当前包含 141 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制、波次与三端界面。
+当前包含 153 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制、双形态 Boss、波次与三端界面。
 
 Android 配置：`minSdk=35`、`targetSdk=37`、`compileSdk=37`，仅构建 `arm64-v8a`。
 Windows 与 Web 平台文件由 CI 在构建时生成，仓库不存放 `windows/`、`web/` 目录。
@@ -91,9 +91,9 @@ test/                           单元测试与组件测试
 构建全部在 CI 完成。推送 Tag 不会自动出包，需要在 Actions 中手动运行 `build.yml` 并选定该 Tag：
 
 ```shell
-git tag -a v0.1.2 -m "v0.1.2: 批绘制与碰撞热路径优化"
-git push origin v0.1.2
-tea actions workflows dispatch build.yml --ref refs/tags/v0.1.2 --follow
+git tag -a v0.2.0 -m "v0.2.0: 新增敌机与深渊利维坦 Boss"
+git push origin v0.2.0
+tea actions workflows dispatch build.yml --ref refs/tags/v0.2.0 --follow
 ```
 
 产物包含 Android APK（aarch64）、Windows ZIP（x86_64）与 Web 压缩包，并发布到 Releases 与 Pages。
@@ -102,6 +102,7 @@ tea actions workflows dispatch build.yml --ref refs/tags/v0.1.2 --follow
 
 | 版本 | 说明 |
 | --- | --- |
+| v0.2.0 | 内容版本：新增截击机/自爆无人机/重装堡垒、深渊利维坦 Boss 与急速射击 |
 | v0.1.2 | 性能版本：弹幕/粒子/星空批绘制、粒子对象池、碰撞预筛，玩法不变 |
 | v0.1.1 | 重构版本：拆分战斗模块、弹道与敌机配置化、渲染查表，玩法不变 |
 | v0.1.0 | 首个可玩版本：完整弹幕战斗、四类敌机与 Boss、程序化音画、三端发布 |
