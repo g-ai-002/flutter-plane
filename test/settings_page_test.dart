@@ -6,6 +6,7 @@ import 'package:sky_fighter/game/logic_rate.dart';
 import 'package:sky_fighter/pages/settings_page.dart';
 import 'package:sky_fighter/providers/settings_provider.dart';
 import 'package:sky_fighter/services/storage_service.dart';
+import 'package:sky_fighter/utils/constants.dart';
 
 Future<SettingsProvider> pumpSettings(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
@@ -34,7 +35,10 @@ void main() {
     expect(find.text('战绩'), findsOneWidget);
     expect(find.text('关于'), findsOneWidget);
     expect(find.text('逻辑刷新率'), findsOneWidget);
-    expect(find.textContaining('v0.2.1'), findsWidgets);
+    expect(
+      find.textContaining('v${AppConstants.version}'),
+      findsWidgets,
+    );
   });
 
   testWidgets('切换逻辑刷新率', (tester) async {

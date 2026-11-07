@@ -6,6 +6,7 @@ import 'package:sky_fighter/pages/home_page.dart';
 import 'package:sky_fighter/providers/settings_provider.dart';
 import 'package:sky_fighter/pages/widgets/space_backdrop.dart';
 import 'package:sky_fighter/services/storage_service.dart';
+import 'package:sky_fighter/utils/constants.dart';
 
 Future<SettingsProvider> pumpHome(
   WidgetTester tester, {
@@ -42,7 +43,10 @@ void main() {
     expect(find.text('12,345'), findsOneWidget);
     expect(find.text('6'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
-    expect(find.textContaining('v0.2.1'), findsOneWidget);
+    expect(
+      find.textContaining('v${AppConstants.version}'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('玩法说明弹窗展示操作与规则', (tester) async {
