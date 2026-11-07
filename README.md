@@ -4,7 +4,7 @@
 覆盖 **Android / Windows / Web**，完全本地运行，无需联网。
 
 - 🎮 在线试玩：<http://192.168.31.120:8040/GTech/flutter-plane/>
-- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.2.0>
+- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.2.1>
 
 ## 特色
 
@@ -20,6 +20,8 @@
 - **可调逻辑刷新率**：30Hz 省电 / 60Hz 均衡 / 120Hz 顺滑（默认 60Hz），固定步长推进，
   低帧率下也不会出现子弹穿透。
 - **本地记录**：最高分、最远波次与出击次数自动保存；日志按天写入用户目录，方便排查问题。
+- **集中调参**：难度曲线、边界、掉落与 Boss 节奏集中在 `battle_tuning` / `boss_catalog`，
+  调手感只改一处，界面与逻辑共用同一份数值。
 
 ## 操作
 
@@ -57,7 +59,7 @@ flutter run -d windows
 flutter run -d chrome
 ```
 
-当前包含 153 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制、双形态 Boss、波次与三端界面。
+当前包含 182 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制、双形态 Boss、波次与三端界面。
 
 Android 配置：`minSdk=35`、`targetSdk=37`、`compileSdk=37`，仅构建 `arm64-v8a`。
 Windows 与 Web 平台文件由 CI 在构建时生成，仓库不存放 `windows/`、`web/` 目录。
@@ -91,9 +93,9 @@ test/                           单元测试与组件测试
 构建全部在 CI 完成。推送 Tag 不会自动出包，需要在 Actions 中手动运行 `build.yml` 并选定该 Tag：
 
 ```shell
-git tag -a v0.2.0 -m "v0.2.0: 新增敌机与深渊利维坦 Boss"
-git push origin v0.2.0
-tea actions workflows dispatch build.yml --ref refs/tags/v0.2.0 --follow
+git tag -a v0.2.1 -m "v0.2.1: 收敛战场数值与重复实现"
+git push origin v0.2.1
+tea actions workflows dispatch build.yml --ref refs/tags/v0.2.1 --follow
 ```
 
 产物包含 Android APK（aarch64）、Windows ZIP（x86_64）与 Web 压缩包，并发布到 Releases 与 Pages。
@@ -102,6 +104,7 @@ tea actions workflows dispatch build.yml --ref refs/tags/v0.2.0 --follow
 
 | 版本 | 说明 |
 | --- | --- |
+| v0.2.1 | 重构版本：集中战场数值与 Boss 节奏，合并 HUD、绘制、碰撞与按键的重复实现 |
 | v0.2.0 | 内容版本：新增截击机/自爆无人机/重装堡垒、深渊利维坦 Boss 与急速射击 |
 | v0.1.2 | 性能版本：弹幕/粒子/星空批绘制、粒子对象池、碰撞预筛，玩法不变 |
 | v0.1.1 | 重构版本：拆分战斗模块、弹道与敌机配置化、渲染查表，玩法不变 |
