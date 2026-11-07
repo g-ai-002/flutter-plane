@@ -59,33 +59,69 @@ Uint8List synthesizeWav(
   final random = math.Random(20261107);
 
   for (final note in notes) {
-    final offset = (note.start * sampleRate).round();
     final count = (note.duration * sampleRate).round();
     if (count <= 0) continue;
-    final attack = math.max(1, (0.0025 * sampleRate).round());
-    final release = math.max(1, (0.005 * sampleRate).round());
-    final gain = note.gain / 1.44;
-    var phase = 0.0;
-    for (var i = 0; i < count; i++) {
-      final index = offset + i;
-      if (index >= totalSamples) break;
-      final progress = i / count;
-      final envelope =
-          math.min(1, i / attack) *
-          math.min(1, (count - i) / release) *
-          math.exp(-note.decay * progress);
-      final frequency = note.frequency * (1 + (note.sweep - 1) * progress);
-      phase += 2 * math.pi * frequency / sampleRate;
-      final tone =
-          math.sin(phase) +
-          (0.32 * note.brightness) * math.sin(2 * phase) +
-          (0.12 * note.brightness) * math.sin(3 * phase);
-      final hit = note.noise * (random.nextDouble() * 2 - 1);
-      mix[index] += envelope * (tone * gain + hit);
-    }
+    renderVoice(
+      mix: mix,
+      offset: (note.start * sampleRate).round(),
+      count: count,
+      sampleRate: sampleRate,
+      frequency: note.frequency,
+      sweep: note.sweep,
+      decay: note.decay,
+      brightness: note.brightness,
+      gain: note.gain / 1.44,
+      noise: note.noise,
+      attackSamples: math.max(1, (0.0025 * sampleRate).round()),
+      releaseSamples: math.max(1, (0.005 * sampleRate).round()),
+      harmonic2: 0.32,
+      harmonic3: 0.12,
+      random: random,
+    );
   }
 
   return encodePcmWav(mix, sampleRate);
+}
+
+/// 把一个声部渲染进混音缓冲：正弦基频叠加二、三次谐波，可选噪声与滑音。
+///
+/// 音效与背景音乐只差包络、谐波权重与增益比例，合成循环集中在这里，
+/// 两段配方共用同一套相位累加与写入逻辑。
+void renderVoice({
+  required Float64List mix,
+  required int offset,
+  required int count,
+  required int sampleRate,
+  required double frequency,
+  required double sweep,
+  required double decay,
+  required double brightness,
+  required double gain,
+  required double noise,
+  required int attackSamples,
+  required int releaseSamples,
+  required double harmonic2,
+  required double harmonic3,
+  required math.Random random,
+}) {
+  var phase = 0.0;
+  for (var i = 0; i < count; i++) {
+    final index = offset + i;
+    if (index >= mix.length) break;
+    final progress = i / count;
+    var envelope = math.min(1, i / attackSamples) * math.exp(-decay * progress);
+    if (releaseSamples > 0) {
+      envelope *= math.min(1, (count - i) / releaseSamples);
+    }
+    final current = frequency * (1 + (sweep - 1) * progress);
+    phase += 2 * math.pi * current / sampleRate;
+    final tone =
+        math.sin(phase) +
+        harmonic2 * brightness * math.sin(2 * phase) +
+        harmonic3 * brightness * math.sin(3 * phase);
+    final hit = noise * (random.nextDouble() * 2 - 1);
+    mix[index] += envelope * (tone * gain + hit);
+  }
 }
 
 /// 背景音乐采样率与循环长度：强节奏电子循环，8 秒一循环。
@@ -200,21 +236,24 @@ Uint8List synthesizeMusicWav({int sampleRate = kMusicSampleRate}) {
       totalSamples - offset,
     );
     if (count <= 0) continue;
-    final attack = math.max(1, (0.004 * sampleRate).round());
-    var phase = 0.0;
-    for (var i = 0; i < count; i++) {
-      final progress = i / count;
-      final envelope =
-          math.min(1, i / attack) * math.exp(-voice.decay * progress);
-      final frequency = voice.frequency * (1 + (voice.sweep - 1) * progress);
-      phase += 2 * math.pi * frequency / sampleRate;
-      final tone =
-          math.sin(phase) +
-          (0.3 * voice.brightness) * math.sin(2 * phase) +
-          (0.1 * voice.brightness) * math.sin(3 * phase);
-      final hit = voice.noise * (random.nextDouble() * 2 - 1);
-      mix[offset + i] += envelope * voice.gain * (tone * 0.42 + hit);
-    }
+    renderVoice(
+      mix: mix,
+      offset: offset,
+      count: count,
+      sampleRate: sampleRate,
+      frequency: voice.frequency,
+      sweep: voice.sweep,
+      decay: voice.decay,
+      brightness: voice.brightness,
+      // 音乐整体压低音量，噪声按同一比例缩放，避免鼓点盖过旋律。
+      gain: voice.gain * 0.42,
+      noise: voice.noise * voice.gain,
+      attackSamples: math.max(1, (0.004 * sampleRate).round()),
+      releaseSamples: 0,
+      harmonic2: 0.3,
+      harmonic3: 0.1,
+      random: random,
+    );
   }
 
   var peak = 0.0;

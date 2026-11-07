@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 
+import 'audio_engine.dart';
 import 'log_service.dart';
 import 'synth_worker.dart';
 import 'tone_synth.dart';
@@ -233,13 +234,12 @@ class SoundService {
 
   static Future<void> _load() async {
     try {
-      final soloud = SoLoud.instance;
-      if (!soloud.isInitialized) await soloud.init();
+      await AudioEngine.ensureInitialized();
       // 九个音效的采样合成一次放到后台 isolate，主线程只负责装载音源。
       final clips = await runSynth(_synthesizeAllClips);
       _clips.addAll(clips);
       for (final sound in GameSound.values) {
-        _sources[sound] = await soloud.loadMem(
+        _sources[sound] = await AudioEngine.loadMem(
           'skyfighter-${sound.name}.wav',
           _clips[sound]!,
         );

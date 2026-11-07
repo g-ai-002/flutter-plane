@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 
+import 'audio_engine.dart';
 import 'log_service.dart';
 import 'synth_worker.dart';
 import 'tone_synth.dart';
@@ -54,10 +55,9 @@ class MusicService {
 
   static Future<void> _start() async {
     try {
-      final soloud = SoLoud.instance;
-      if (!soloud.isInitialized) await soloud.init();
+      await AudioEngine.ensureInitialized();
       // 8 秒循环音乐有十几万个采样点，放到后台 isolate 合成。
-      _source ??= await soloud.loadMem(
+      _source ??= await AudioEngine.loadMem(
         'skyfighter-bgm.wav',
         await runSynth(_synthesizeMusic),
       );
