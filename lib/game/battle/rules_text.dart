@@ -1,0 +1,33 @@
+import 'battle_tuning.dart';
+import 'battle_types.dart';
+import 'boss_catalog.dart';
+
+/// 玩法说明文案：上限、档位与间隔全部取自调参表。
+///
+/// 之前这些数字在说明弹窗里各抄一遍，调整火力上限或连击档位后文案容易过期；
+/// 现在数值只有一处出处，说明与实战始终保持一致。
+const String kBattleInputHint = '拖动屏幕移动 · 自动开火 · 右下角释放炸弹';
+
+/// 目标说明。
+List<String> battleGoalHints() => [
+  '击落一波又一波敌机，躲避弹幕并尽量保持连击。',
+  '每 $kBossWaveInterval 波会遭遇一艘 Boss 母舰，击破可获得高额分数。',
+  '生命耗尽即战斗结束，最高分与本局波次自动保存。',
+];
+
+/// 补给说明，按 HUD 中的常见关注顺序排列。
+List<String> supplyHints() => [
+  '火力：提升弹道等级，最高 ${Player.maxWeaponLevel} 级。',
+  '护盾：展开能量罩，抵挡一次伤害。',
+  '炸弹：补充一枚全屏炸弹，上限 ${Player.maxBombs} 枚。',
+  '僚机：召唤一架僚机协同射击，最多 ${Player.maxWingmen} 架。',
+  '分数：立即获得额外得分。',
+  '急速：限时提升射速。',
+];
+
+/// 连击说明。
+List<String> comboHints() => [
+  '连续击破敌机会累积连击，'
+      '$kComboTier2x / $kComboTier3x / $kComboTier4x 连击提升分数倍率。',
+  '停火超过 $kComboWindow 秒连击归零，倍率最高 ×4。',
+];

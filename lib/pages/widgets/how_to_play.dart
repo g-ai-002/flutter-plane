@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../game/battle/rules_text.dart';
 import '../../theme/app_theme.dart';
 
 /// 玩法说明弹窗：操作、目标、补给与连击规则。
@@ -56,34 +57,20 @@ class _HowToPlayDialog extends StatelessWidget {
                   'Windows：方向键 / WASD 移动，空格或 B 放炸弹，Esc 暂停。',
                 ],
               ),
-              const _Section(
+              _Section(
                 icon: Icons.flag_rounded,
                 title: '目标',
-                lines: [
-                  '击落一波又一波敌机，躲避弹幕并尽量保持连击。',
-                  '每 4 波会遭遇一艘 Boss 母舰，击破可获得高额分数。',
-                  '生命耗尽即战斗结束，最高分与本局波次自动保存。',
-                ],
+                lines: battleGoalHints(),
               ),
-              const _Section(
+              _Section(
                 icon: Icons.card_giftcard_rounded,
                 title: '补给',
-                lines: [
-                  '火力：提升弹道等级，最高 6 级。',
-                  '护盾：展开能量罩，抵挡一次伤害。',
-                  '炸弹：补充一枚全屏炸弹，上限 3 枚。',
-                  '僚机：召唤一架僚机协同射击，最多 2 架。',
-                  '分数：立即获得额外得分。',
-                  '急速：限时提升射速。',
-                ],
+                lines: supplyHints(),
               ),
-              const _Section(
+              _Section(
                 icon: Icons.bolt_rounded,
                 title: '连击',
-                lines: [
-                  '连续击破敌机会累积连击，12 / 30 / 60 连击提升分数倍率。',
-                  '停火超过 2.6 秒连击归零，倍率最高 ×4。',
-                ],
+                lines: comboHints(),
                 accent: appAmber,
               ),
               const SizedBox(height: 10),

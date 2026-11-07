@@ -4,27 +4,10 @@ import 'package:flutter/material.dart';
 
 import '../../game/battle/battle_controller.dart';
 import '../../game/battle/battle_types.dart';
+import '../../game/battle/rules_text.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
-
-/// HUD 状态条目：同一份数据同时供紧凑横条与宽屏面板渲染。
-class _HudStat {
-  const _HudStat({
-    required this.icon,
-    required this.color,
-    required this.label,
-    required this.shortValue,
-    required this.fullValue,
-    this.stripIconSize = 14,
-  });
-
-  final IconData icon;
-  final Color color;
-  final String label;
-  final String shortValue;
-  final String fullValue;
-  final double stripIconSize;
-}
+import 'hud_stats.dart';
 
 /// 战斗 HUD：得分、生命、炸弹、波次、连击与 Boss 血条。
 ///
@@ -190,51 +173,9 @@ class BattleHud extends StatelessWidget {
     ),
   );
 
-  /// 会随战斗变化的状态条目：图标、配色与两种布局的文案只在这里定义，
-  /// 紧凑横条与宽屏面板不会各自维护一份而出现数值不一致。
-  List<_HudStat> _statusStats() {
-    final player = controller.player;
-    return [
-      _HudStat(
-        icon: Icons.rocket_launch_rounded,
-        color: appCyan,
-        label: '生命',
-        shortValue: '×${player.lives}',
-        fullValue: '${player.lives}',
-      ),
-      _HudStat(
-        icon: Icons.local_fire_department_rounded,
-        color: appAmber,
-        label: '炸弹',
-        shortValue: '×${player.bombs}',
-        fullValue: '${player.bombs}',
-      ),
-      _HudStat(
-        icon: Icons.bolt_rounded,
-        color: const Color(0xFF9BE8FF),
-        label: '火力',
-        shortValue: '${player.weaponLevel}',
-        fullValue: '${player.weaponLevel} 级',
-        stripIconSize: 15,
-      ),
-      if (player.wingmen > 0)
-        _HudStat(
-          icon: Icons.flight_rounded,
-          color: const Color(0xFF9BFFEA),
-          label: '僚机',
-          shortValue: '×${player.wingmen}',
-          fullValue: '${player.wingmen} 架',
-        ),
-      if (player.rapid > 0)
-        _HudStat(
-          icon: Icons.timer_rounded,
-          color: const Color(0xFFFFE082),
-          label: '急速',
-          shortValue: '${player.rapid.ceil()}s',
-          fullValue: '${player.rapid.ceil()} 秒',
-        ),
-    ];
-  }
+  /// 会随战斗变化的状态条目来自 [hudStatsFor]，紧凑横条与宽屏面板不会
+  /// 各自维护一份而出现数值不一致。
+  List<HudStat> _statusStats() => hudStatsFor(controller.player);
 
   Widget _statusStrip() {
     final stats = _statusStats();
@@ -289,7 +230,7 @@ class BattleHud extends StatelessWidget {
     );
   }
 
-  Widget _statRow(_HudStat stat) => Row(
+  Widget _statRow(HudStat stat) => Row(
     children: [
       Icon(stat.icon, size: 15, color: stat.color),
       const SizedBox(width: 6),
@@ -566,7 +507,7 @@ class BattleHud extends StatelessWidget {
                 border: Border.all(color: const Color(0x33FFFFFF)),
               ),
               child: const Text(
-                '拖动屏幕移动 · 自动开火 · 右下角释放炸弹',
+                kBattleInputHint,
                 style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
