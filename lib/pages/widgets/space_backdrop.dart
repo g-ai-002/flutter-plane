@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../game/ship_geometry.dart';
 import '../../theme/app_theme.dart';
 
 /// 深空背景：渐变、星点与两团星云光晕，随主题切换明暗。
@@ -247,19 +248,7 @@ class _EmblemPainter extends CustomPainter {
         ).createShader(const Rect.fromLTWH(-6, 13, 12, 20)),
     );
 
-    final body = Path()
-      ..moveTo(0, -17)
-      ..lineTo(4.5, -6)
-      ..lineTo(14, 3)
-      ..lineTo(14, 8.5)
-      ..lineTo(5, 7)
-      ..lineTo(3.2, 12)
-      ..lineTo(-3.2, 12)
-      ..lineTo(-5, 7)
-      ..lineTo(-14, 8.5)
-      ..lineTo(-14, 3)
-      ..lineTo(-4.5, -6)
-      ..close();
+    final body = playerHullPath;
     canvas.drawPath(
       body,
       Paint()

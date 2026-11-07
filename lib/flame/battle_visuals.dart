@@ -2,6 +2,8 @@ import 'dart:ui';
 
 import '../game/battle/battle_types.dart';
 
+export '../game/ship_geometry.dart';
+
 /// 敌机矢量外观：机体、描边、核心颜色与轮廓路径都按类型集中声明。
 ///
 /// 渲染层只按 [EnemyKind] 查表，不再在每个绘制分支里重复 switch，
@@ -31,28 +33,6 @@ class EnemyVisual {
   final List<Offset> turrets;
   final double glowRadius;
 }
-
-final Path playerHullPath = Path()
-  ..moveTo(0, -17)
-  ..lineTo(4.5, -6)
-  ..lineTo(14, 3)
-  ..lineTo(14, 8.5)
-  ..lineTo(5, 7)
-  ..lineTo(3.2, 12)
-  ..lineTo(-3.2, 12)
-  ..lineTo(-5, 7)
-  ..lineTo(-14, 8.5)
-  ..lineTo(-14, 3)
-  ..lineTo(-4.5, -6)
-  ..close();
-
-/// 僚机的小型护航轮廓。
-final Path wingmanHullPath = Path()
-  ..moveTo(0, -9)
-  ..lineTo(6.5, 6)
-  ..lineTo(0, 3.2)
-  ..lineTo(-6.5, 6)
-  ..close();
 
 final Path bossHullPath = Path()
   ..moveTo(0, 38)
