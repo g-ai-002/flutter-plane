@@ -11,6 +11,7 @@ import '../services/sound_service.dart';
 import '../utils/constants.dart';
 import '../utils/formatters.dart';
 import 'widgets/space_backdrop.dart';
+import 'widgets/stat_text.dart';
 
 Future<void> openSettingsPage(BuildContext context) {
   return Navigator.of(context)
@@ -82,12 +83,24 @@ class SettingsPage extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        _StatCell(
-                          label: '最高分',
-                          value: formatScore(settings.highScore),
+                        Expanded(
+                          child: StatText(
+                            label: '最高分',
+                            value: formatScore(settings.highScore),
+                          ),
                         ),
-                        _StatCell(label: '最远波次', value: '${settings.bestWave}'),
-                        _StatCell(label: '出击次数', value: '${settings.runs}'),
+                        Expanded(
+                          child: StatText(
+                            label: '最远波次',
+                            value: '${settings.bestWave}',
+                          ),
+                        ),
+                        Expanded(
+                          child: StatText(
+                            label: '出击次数',
+                            value: '${settings.runs}',
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -302,38 +315,6 @@ class _SwitchRow extends StatelessWidget {
             ),
           ),
           Switch.adaptive(value: value, onChanged: onChanged),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatCell extends StatelessWidget {
-  const _StatCell({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 19,
-              fontWeight: FontWeight.w800,
-              color: colors.onSurface,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant),
-          ),
         ],
       ),
     );

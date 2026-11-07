@@ -12,6 +12,7 @@ import 'game_page.dart';
 import 'settings_page.dart';
 import 'widgets/how_to_play.dart';
 import 'widgets/space_backdrop.dart';
+import 'widgets/stat_text.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -348,40 +349,13 @@ class _StatTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: colors.outline.withValues(alpha: 0.7)),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, size: 12, color: colors.onSurfaceVariant),
-                const SizedBox(width: 4),
-                Flexible(
-                  child: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 9.5,
-                      color: colors.onSurfaceVariant,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 3),
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w800,
-                height: 1.15,
-                color: colors.onSurface,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
+        child: StatText(
+          label: label,
+          value: value,
+          icon: icon,
+          labelFirst: true,
+          valueSize: 17,
+          labelSize: 9.5,
         ),
       ),
     );

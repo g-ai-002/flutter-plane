@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
+import 'stat_text.dart';
 
 /// 战斗遮罩的玻璃卡片外观。
 class _GlassPanel extends StatelessWidget {
@@ -286,22 +287,13 @@ class BattleResultOverlay extends StatelessWidget {
   }
 
   Widget _stat(String label, String value) => Expanded(
-    child: Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-            color: Colors.white,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(fontSize: 10.5, color: Color(0x99FFFFFF)),
-        ),
-      ],
+    child: StatText(
+      label: label,
+      value: value,
+      valueSize: 17,
+      valueColor: Colors.white,
+      labelColor: const Color(0x99FFFFFF),
+      alignment: CrossAxisAlignment.center,
     ),
   );
 

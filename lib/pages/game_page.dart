@@ -253,6 +253,12 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
             focusNode: _focusNode,
             autofocus: true,
             onKeyEvent: _onKey,
+            onFocusChange: (hasFocus) {
+              if (hasFocus) return;
+              // 切换窗口或弹窗夺焦时清空按键，避免战机持续漂移。
+              _pressed.clear();
+              _controller?.setMoveAxis(Offset.zero);
+            },
             child: SafeArea(
               child: LayoutBuilder(
                 builder: (context, constraints) {
