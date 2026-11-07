@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+import 'dart:ui';
 
 /// 战场逻辑宽度：所有尺寸、速度都按这一宽度设计，渲染时整体缩放。
 const double kWorldWidth = 400;
@@ -36,7 +36,19 @@ enum EnemyKind { scout, fighter, bomber, elite, boss }
 /// 敌机移动方式。
 enum EnemyPattern { straight, sine, dive, hover }
 
+/// 弹道外观编号：渲染层据此选择颜色与半径。
+class BulletKind {
+  BulletKind._();
+
+  static const int player = 0;
+  static const int aimed = 1;
+  static const int spread = 2;
+  static const int boss = 3;
+}
+
 /// 敌机静态参数。
+///
+/// 开火弹道也在这里声明，新增敌机只需补充配置而无需改动开火分支。
 class EnemySpec {
   const EnemySpec({
     required this.hp,
@@ -44,6 +56,10 @@ class EnemySpec {
     required this.score,
     required this.dropChance,
     this.fireInterval = 2.4,
+    this.fireCount = 0,
+    this.fireSpread = 0,
+    this.bulletSpeed = 0,
+    this.bulletKind = BulletKind.aimed,
   });
 
   final double hp;
@@ -51,6 +67,12 @@ class EnemySpec {
   final int score;
   final double dropChance;
   final double fireInterval;
+
+  /// 单次齐射的弹数，0 表示不会开火（如侦察机与 Boss）。
+  final int fireCount;
+  final double fireSpread;
+  final double bulletSpeed;
+  final int bulletKind;
 }
 
 const Map<EnemyKind, EnemySpec> kEnemySpecs = {
@@ -61,6 +83,8 @@ const Map<EnemyKind, EnemySpec> kEnemySpecs = {
     score: 130,
     dropChance: 0.14,
     fireInterval: 2.1,
+    fireCount: 1,
+    bulletSpeed: 185,
   ),
   EnemyKind.bomber: EnemySpec(
     hp: 26,
@@ -68,6 +92,10 @@ const Map<EnemyKind, EnemySpec> kEnemySpecs = {
     score: 280,
     dropChance: 0.3,
     fireInterval: 2.5,
+    fireCount: 3,
+    fireSpread: 0.22,
+    bulletSpeed: 155,
+    bulletKind: BulletKind.spread,
   ),
   EnemyKind.elite: EnemySpec(
     hp: 52,
@@ -75,6 +103,10 @@ const Map<EnemyKind, EnemySpec> kEnemySpecs = {
     score: 620,
     dropChance: 0.6,
     fireInterval: 2.2,
+    fireCount: 5,
+    fireSpread: 0.17,
+    bulletSpeed: 175,
+    bulletKind: BulletKind.spread,
   ),
   EnemyKind.boss: EnemySpec(
     hp: 180,
@@ -142,7 +174,6 @@ class Enemy {
 
   double x;
   double y;
-  double vx = 0;
   double vy = 0;
   late double hp;
   late double maxHp;
@@ -281,18 +312,12 @@ class Star {
   final double alpha;
 }
 
-/// 敌机开火角度工具：从 [from] 指向 [to] 的单位方向。
-math.Point<double> aimDirection(
-  double fromX,
-  double fromY,
-  double toX,
-  double toY,
-) {
-  final dx = toX - fromX;
-  final dy = toY - fromY;
-  final length = math.sqrt(dx * dx + dy * dy);
-  if (length < 0.0001) return const math.Point<double>(0, 1);
-  return math.Point<double>(dx / length, dy / length);
+/// 敌机开火方向工具：从 `from` 指向 `to` 的单位向量。
+Offset aimDirection(Offset from, Offset to) {
+  final delta = to - from;
+  final length = delta.distance;
+  if (length < 0.0001) return const Offset(0, 1);
+  return delta / length;
 }
 
 /// 把角度限制在 [min, max]。
