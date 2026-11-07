@@ -9,12 +9,14 @@ class SpawnRequest {
     required this.x,
     required this.pattern,
     this.phase = 0,
+    this.variant = BossVariant.scorpion,
   });
 
   final EnemyKind kind;
   final double x;
   final EnemyPattern pattern;
   final double phase;
+  final BossVariant variant;
 }
 
 class _PendingSpawn {
@@ -35,6 +37,7 @@ class WaveDirector {
 
   int wave = 0;
   bool bossWave = false;
+  BossVariant bossVariant = BossVariant.scorpion;
 
   bool get spawning => _pending.isNotEmpty;
 
@@ -57,12 +60,17 @@ class WaveDirector {
     bossWave = wave % 4 == 0;
     _pending.clear();
     if (bossWave) {
+      final bossIndex = wave ~/ 4 - 1;
+      bossVariant = bossIndex.isEven
+          ? BossVariant.scorpion
+          : BossVariant.leviathan;
       _pending.add(
         _PendingSpawn(
-          const SpawnRequest(
+          SpawnRequest(
             kind: EnemyKind.boss,
             x: kWorldWidth / 2,
             pattern: EnemyPattern.hover,
+            variant: bossVariant,
           ),
           0.4,
         ),
@@ -150,6 +158,20 @@ class WaveDirector {
       );
     }
 
+    // 自爆无人机：左右夹击，追着玩家俯冲。
+    if (tier >= 4) {
+      for (var i = 0; i < 2; i++) {
+        add(
+          EnemyKind.drone,
+          i.isEven ? 92 : kWorldWidth - 92,
+          EnemyPattern.chase,
+          3.3 + 0.35 * i,
+          phase: 0.5 * i,
+        );
+      }
+    }
+
+    // 截击机：从侧翼高速切入，单发快弹点射。
     if (tier >= 5) {
       final fromLeft = _rng.nextBool();
       add(
@@ -158,6 +180,13 @@ class WaveDirector {
         EnemyPattern.hover,
         4.4,
         phase: _rng.nextDouble(),
+      );
+      add(
+        EnemyKind.interceptor,
+        fromLeft ? kWorldWidth - 74 : 74,
+        EnemyPattern.dive,
+        3.9,
+        phase: 0.25,
       );
     }
 
@@ -171,6 +200,17 @@ class WaveDirector {
           phase: 0.2 * i,
         );
       }
+    }
+
+    // 重装堡垒：悬停后环形齐射，血厚且掉率高。
+    if (tier >= 8) {
+      add(
+        EnemyKind.fortress,
+        kWorldWidth / 2 + (_rng.nextDouble() - 0.5) * 60,
+        EnemyPattern.hover,
+        4.9,
+        phase: _rng.nextDouble(),
+      );
     }
 
     if (tier >= 9) {

@@ -255,7 +255,7 @@ class BattleFieldComponent extends PositionComponent {
   void _drawEnemies(Canvas canvas) {
     for (final enemy in controller.enemies) {
       if (enemy.dead) continue;
-      final visual = kEnemyVisuals[enemy.kind]!;
+      final visual = visualFor(enemy);
       canvas.save();
       canvas.translate(enemy.x, enemy.y);
       final appear = (enemy.age / 0.28).clamp(0.0, 1.0);
@@ -276,6 +276,16 @@ class BattleFieldComponent extends PositionComponent {
         ..color = (hit ? Colors.white : visual.trim).withValues(alpha: appear)
         ..strokeWidth = visual.strokeWidth;
       canvas.drawPath(visual.path, _stroke);
+
+      // 炮塔（重装堡垒）
+      for (final turret in visual.turrets) {
+        _fill.color = visual.hull.withValues(alpha: appear);
+        canvas.drawCircle(turret, 4.6, _fill);
+        _stroke
+          ..color = visual.trim.withValues(alpha: appear)
+          ..strokeWidth = 1.1;
+        canvas.drawCircle(turret, 4.6, _stroke);
+      }
 
       // 核心与引擎光
       _fill.color = visual.core.withValues(alpha: appear * pulse);
@@ -305,18 +315,18 @@ class BattleFieldComponent extends PositionComponent {
       ..strokeWidth = visual.strokeWidth;
     canvas.drawPath(visual.path, _stroke);
 
-    // 侧翼炮塔
-    _fill.color = kBossTurret.withValues(alpha: appear);
-    for (final side in [-1, 1]) {
-      canvas.drawCircle(Offset(side * 30.0, 8), 6.5, _fill);
+    // 炮塔：赤蝎双翼炮、利维坦三联炮，配色跟随机体。
+    _fill.color = visual.hull.withValues(alpha: appear);
+    for (final turret in visual.turrets) {
+      canvas.drawCircle(turret, 6.5, _fill);
       _stroke
-        ..color = kBossTrim.withValues(alpha: appear)
+        ..color = visual.trim.withValues(alpha: appear)
         ..strokeWidth = 1.2;
-      canvas.drawCircle(Offset(side * 30.0, 8), 6.5, _stroke);
+      canvas.drawCircle(turret, 6.5, _stroke);
     }
     // 核心
-    _glow.color = kBossCoreGlow.withValues(alpha: appear * pulse * 0.35);
-    canvas.drawCircle(Offset.zero, 20, _glow);
+    _glow.color = visual.core.withValues(alpha: appear * pulse * 0.35);
+    canvas.drawCircle(Offset.zero, visual.glowRadius, _glow);
     _fill.color = visual.core.withValues(alpha: appear * pulse);
     canvas.drawCircle(Offset.zero, visual.coreRadius, _fill);
     _fill.color = Colors.white.withValues(alpha: appear * 0.9);

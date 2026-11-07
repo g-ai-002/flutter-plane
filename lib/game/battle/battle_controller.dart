@@ -32,7 +32,10 @@ class BattleController extends ChangeNotifier {
     _effects.resetStars(_size);
   }
 
-  static const List<String> _bossNames = ['赤蝎母舰', '雷霆要塞', '虚空旗舰', '终焉之核'];
+  static const Map<BossVariant, List<String>> _bossNames = {
+    BossVariant.scorpion: ['赤蝎母舰', '雷霆要塞', '虚空旗舰'],
+    BossVariant.leviathan: ['深渊利维坦', '终焉之核', '混沌母巢'],
+  };
 
   /// 开场操作提示的持续时间，与 HUD 的淡出时长保持一致。
   static const double hintDuration = 6;
@@ -80,9 +83,17 @@ class BattleController extends ChangeNotifier {
 
   int get highScore => _highScore;
 
+  BossVariant get bossVariant {
+    final index = wave <= 0 ? 0 : wave ~/ 4 - 1;
+    return index.isOdd ? BossVariant.leviathan : BossVariant.scorpion;
+  }
+
   String get bossName {
     if (wave <= 0) return '';
-    return _bossNames[(wave ~/ 4 - 1) % _bossNames.length];
+    final index = wave ~/ 4 - 1;
+    final variant = index.isOdd ? BossVariant.leviathan : BossVariant.scorpion;
+    final names = _bossNames[variant]!;
+    return names[(index ~/ 2) % names.length];
   }
 
   int get multiplier {
@@ -267,6 +278,7 @@ class BattleController extends ChangeNotifier {
     player.lives,
     player.bombs,
     player.weaponLevel,
+    player.rapid > 0 ? player.rapid.ceil() : 0,
     combo,
     multiplier,
     phase,
@@ -279,6 +291,7 @@ class BattleController extends ChangeNotifier {
     if (!p.alive) return;
     p.invuln = math.max(0, p.invuln - dt);
     p.shield = math.max(0, p.shield - dt);
+    p.rapid = math.max(0, p.rapid - dt);
     if (_moveAxis != Offset.zero) {
       p.x = clampDouble(
         p.x + _moveAxis.dx * kPlayerSpeed * dt,
@@ -297,7 +310,8 @@ class BattleController extends ChangeNotifier {
 
     p.fireCooldown -= dt;
     if (p.fireCooldown <= 0) {
-      p.fireCooldown = kBaseFireInterval - 0.008 * (p.weaponLevel - 1);
+      final interval = kBaseFireInterval - 0.008 * (p.weaponLevel - 1);
+      p.fireCooldown = interval * (p.rapid > 0 ? 0.62 : 1);
       appendPlayerShots(p, playerBullets);
       if (_shootCooldown <= 0) {
         _shootCooldown = 0.12;
@@ -347,6 +361,7 @@ class BattleController extends ChangeNotifier {
         y: request.kind == EnemyKind.boss ? -60 : -24,
         difficulty: difficulty,
         driftPhase: request.phase,
+        variant: request.variant,
       ),
     );
   }
@@ -361,7 +376,11 @@ class BattleController extends ChangeNotifier {
       if (enemy.isBoss) {
         _updateBoss(enemy, dt);
       } else {
-        advanceEnemy(enemy, dt);
+        advanceEnemy(
+          enemy,
+          dt,
+          targetX: enemy.pattern == EnemyPattern.chase ? player.x : null,
+        );
         if (enemy.y > _size.height + 60) {
           enemy.dead = true;
         } else if (enemy.y > 6 && enemy.y < _size.height * 0.78) {
@@ -379,9 +398,22 @@ class BattleController extends ChangeNotifier {
     if (enemy.fireCooldown > 0) return;
     final scale = 1 / math.sqrt(1 + 0.09 * (wave - 1));
     enemy.fireCooldown = spec.fireInterval * scale;
+    final origin = Offset(enemy.x, enemy.y);
+    if (spec.fireMode == EnemyFireMode.radial) {
+      enemyBullets.addAll(
+        buildRadialVolley(
+          origin: origin,
+          count: spec.fireCount,
+          speed: spec.bulletSpeed,
+          kind: spec.bulletKind,
+          phase: enemy.age * 0.45,
+        ),
+      );
+      return;
+    }
     enemyBullets.addAll(
       buildAimedVolley(
-        origin: Offset(enemy.x, enemy.y),
+        origin: origin,
         target: Offset(player.x, player.y),
         speed: spec.bulletSpeed,
         count: spec.fireCount,
@@ -407,6 +439,7 @@ class BattleController extends ChangeNotifier {
         target: Offset(player.x, player.y),
         cycle: cycle,
         speed: speed,
+        variant: boss.variant,
       ),
     );
   }
@@ -475,6 +508,9 @@ class BattleController extends ChangeNotifier {
     EnemyKind.fighter => 0xFFFF7A59,
     EnemyKind.bomber => 0xFFFF5252,
     EnemyKind.elite => 0xFFFF4FA3,
+    EnemyKind.interceptor => 0xFFFFE082,
+    EnemyKind.drone => 0xFFFF7043,
+    EnemyKind.fortress => 0xFFB388FF,
     EnemyKind.boss => 0xFFFFD54F,
   };
 
@@ -516,13 +552,15 @@ class BattleController extends ChangeNotifier {
 
   void _dropAt(double x, double y) {
     final roll = _rng.nextDouble();
-    final kind = roll < 0.44
+    final kind = roll < 0.4
         ? PowerUpKind.weapon
-        : roll < 0.68
+        : roll < 0.62
         ? PowerUpKind.shield
-        : roll < 0.82
+        : roll < 0.75
         ? PowerUpKind.bomb
-        : PowerUpKind.star;
+        : roll < 0.87
+        ? PowerUpKind.star
+        : PowerUpKind.rapid;
     powerUps.add(
       PowerUp(x: clampDouble(x, 20, _size.width - 20), y: y, kind: kind),
     );
@@ -563,6 +601,11 @@ class BattleController extends ChangeNotifier {
         final gain = 250 * multiplier;
         score += gain;
         _effects.addPopup(ScorePopup(x: item.x, y: item.y, text: '+$gain'));
+      case PowerUpKind.rapid:
+        player.rapid = math.min(12, player.rapid + 6);
+        _effects.addPopup(
+          ScorePopup(x: item.x, y: item.y, text: '急速射击', color: 0xFFFFE082),
+        );
     }
     _effects.burst(
       position,

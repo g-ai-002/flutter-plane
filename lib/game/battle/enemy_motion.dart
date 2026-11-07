@@ -6,7 +6,8 @@ import 'battle_types.dart';
 /// 敌机移动策略：按 [EnemyPattern] 推进一帧位置。
 ///
 /// 与开火、碰撞、掉落分离，新增移动方式时只需在这里补充分支。
-void advanceEnemy(Enemy enemy, double dt) {
+/// [targetX] 是追踪型敌机（自爆无人机）需要对齐的玩家横坐标。
+void advanceEnemy(Enemy enemy, double dt, {double? targetX}) {
   switch (enemy.pattern) {
     case EnemyPattern.straight:
       enemy.y += enemy.vy * dt;
@@ -19,6 +20,13 @@ void advanceEnemy(Enemy enemy, double dt) {
       enemy.vy = math.min(190, enemy.vy + 30 * dt);
       enemy.y += enemy.vy * dt;
       enemy.x += math.sin(enemy.age * 1.6 + enemy.driftPhase * 6) * 26 * dt;
+    case EnemyPattern.chase:
+      enemy.vy = math.min(214, enemy.vy + 42 * dt);
+      enemy.y += enemy.vy * dt;
+      if (targetX != null) {
+        final step = 96 * dt;
+        enemy.x += (targetX - enemy.x).clamp(-step, step);
+      }
     case EnemyPattern.hover:
       _advanceHover(enemy, dt);
   }

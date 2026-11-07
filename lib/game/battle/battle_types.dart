@@ -31,10 +31,25 @@ enum BattleEvent {
 }
 
 /// 敌机类型。
-enum EnemyKind { scout, fighter, bomber, elite, boss }
+enum EnemyKind {
+  scout,
+  fighter,
+  bomber,
+  elite,
+  interceptor,
+  drone,
+  fortress,
+  boss,
+}
+
+/// Boss 形态：每 4 波交替出现，弹幕与机体外观各不相同。
+enum BossVariant { scorpion, leviathan }
 
 /// 敌机移动方式。
-enum EnemyPattern { straight, sine, dive, hover }
+enum EnemyPattern { straight, sine, dive, hover, chase }
+
+/// 敌机开火方式。
+enum EnemyFireMode { aimed, radial }
 
 /// 弹道外观编号：渲染层据此选择颜色与半径。
 class BulletKind {
@@ -44,6 +59,7 @@ class BulletKind {
   static const int aimed = 1;
   static const int spread = 2;
   static const int boss = 3;
+  static const int plasma = 4;
 }
 
 /// 敌机静态参数。
@@ -60,6 +76,7 @@ class EnemySpec {
     this.fireSpread = 0,
     this.bulletSpeed = 0,
     this.bulletKind = BulletKind.aimed,
+    this.fireMode = EnemyFireMode.aimed,
   });
 
   final double hp;
@@ -73,6 +90,7 @@ class EnemySpec {
   final double fireSpread;
   final double bulletSpeed;
   final int bulletKind;
+  final EnemyFireMode fireMode;
 }
 
 const Map<EnemyKind, EnemySpec> kEnemySpecs = {
@@ -108,6 +126,27 @@ const Map<EnemyKind, EnemySpec> kEnemySpecs = {
     bulletSpeed: 175,
     bulletKind: BulletKind.spread,
   ),
+  EnemyKind.interceptor: EnemySpec(
+    hp: 8,
+    radius: 13,
+    score: 190,
+    dropChance: 0.16,
+    fireInterval: 1.7,
+    fireCount: 1,
+    bulletSpeed: 300,
+  ),
+  EnemyKind.drone: EnemySpec(hp: 5, radius: 10, score: 100, dropChance: 0.05),
+  EnemyKind.fortress: EnemySpec(
+    hp: 84,
+    radius: 26,
+    score: 900,
+    dropChance: 0.7,
+    fireInterval: 2.6,
+    fireCount: 10,
+    bulletSpeed: 125,
+    bulletKind: BulletKind.spread,
+    fireMode: EnemyFireMode.radial,
+  ),
   EnemyKind.boss: EnemySpec(
     hp: 180,
     radius: 38,
@@ -129,6 +168,9 @@ class Player {
 
   /// 护盾剩余时间（秒），大于 0 时可抵挡一次伤害。
   double shield = 0;
+
+  /// 急速射击剩余时间（秒），大于 0 时射击间隔缩短。
+  double rapid = 0;
 
   /// 无敌时间（秒），受伤后短暂闪烁。
   double invuln = 0;
@@ -153,10 +195,14 @@ class Enemy {
     required this.y,
     required this.difficulty,
     this.driftPhase = 0,
+    this.variant = BossVariant.scorpion,
   }) : spec = kEnemySpecs[kind]!,
        baseX = x,
        hoverY = 96 + 46 * ((driftPhase * 7) % 1) {
-    maxHp = spec.hp * difficulty;
+    maxHp =
+        spec.hp *
+        difficulty *
+        (kind == EnemyKind.boss && variant == BossVariant.leviathan ? 1.15 : 1);
     hp = maxHp;
     vy = kind == EnemyKind.boss
         ? 0
@@ -169,6 +215,7 @@ class Enemy {
   final EnemySpec spec;
   final double difficulty;
   final double driftPhase;
+  final BossVariant variant;
   final double baseX;
   final double hoverY;
 
@@ -222,13 +269,14 @@ class Bullet {
 }
 
 /// 补给类型。
-enum PowerUpKind { weapon, shield, bomb, star }
+enum PowerUpKind { weapon, shield, bomb, star, rapid }
 
 const Map<PowerUpKind, String> kPowerUpLabels = {
   PowerUpKind.weapon: '火力',
   PowerUpKind.shield: '护盾',
   PowerUpKind.bomb: '炸弹',
   PowerUpKind.star: '分数',
+  PowerUpKind.rapid: '急速',
 };
 
 /// 掉落的补给。

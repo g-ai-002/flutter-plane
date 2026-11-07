@@ -212,6 +212,19 @@ class BattleHud extends StatelessWidget {
             color: _ink,
           ),
         ),
+        if (controller.player.rapid > 0) ...[
+          const SizedBox(width: 12),
+          const Icon(Icons.timer_rounded, size: 14, color: Color(0xFFFFE082)),
+          const SizedBox(width: 2),
+          Text(
+            '${controller.player.rapid.ceil()}s',
+            style: const TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFFFE082),
+            ),
+          ),
+        ],
       ],
     ),
   );
@@ -250,6 +263,15 @@ class BattleHud extends StatelessWidget {
           '火力',
           '${controller.player.weaponLevel} 级',
         ),
+        if (controller.player.rapid > 0) ...[
+          const SizedBox(height: 6),
+          _statRow(
+            Icons.timer_rounded,
+            const Color(0xFFFFE082),
+            '急速',
+            '${controller.player.rapid.ceil()} 秒',
+          ),
+        ],
       ],
     ),
   );

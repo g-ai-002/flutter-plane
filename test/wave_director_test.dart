@@ -74,5 +74,53 @@ void main() {
       expect(kinds.contains(EnemyKind.elite), isTrue);
       expect(kinds.contains(EnemyKind.bomber), isTrue);
     });
+
+    test('高波次加入自爆无人机、截击机与重装堡垒', () {
+      final director = WaveDirector(seed: 21);
+      for (var i = 0; i < 9; i++) {
+        director.startNextWave();
+        while (director.spawning) {
+          director.update(10);
+        }
+      }
+      // 第 9 波不是 Boss 波，应包含全部新增敌机。
+      expect(director.wave, 9);
+      expect(director.bossWave, isFalse);
+      director.startNextWave();
+      final kinds = <EnemyKind>{};
+      while (director.spawning) {
+        kinds.addAll(director.update(10).map((request) => request.kind));
+      }
+      expect(kinds, contains(EnemyKind.drone));
+      expect(kinds, contains(EnemyKind.interceptor));
+      expect(kinds, contains(EnemyKind.fortress));
+    });
+
+    test('Boss 形态逐次交替，生成请求带上形态', () {
+      final director = WaveDirector(seed: 13);
+      final variants = <BossVariant>[];
+      for (var wave = 1; wave <= 12; wave++) {
+        director.startNextWave();
+        if (director.bossWave) {
+          variants.add(director.bossVariant);
+          final requests = <SpawnRequest>[];
+          while (director.spawning) {
+            requests.addAll(director.update(10));
+          }
+          expect(requests, hasLength(1));
+          expect(requests.single.kind, EnemyKind.boss);
+          expect(requests.single.variant, director.bossVariant);
+        } else {
+          while (director.spawning) {
+            director.update(10);
+          }
+        }
+      }
+      expect(variants, [
+        BossVariant.scorpion,
+        BossVariant.leviathan,
+        BossVariant.scorpion,
+      ]);
+    });
   });
 }

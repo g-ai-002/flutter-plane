@@ -24,12 +24,47 @@ void main() {
       expect(playerHullPath.getBounds().width, 28);
       expect(bossHullPath.getBounds().width, 92);
     });
+
+    test('两种 Boss 形态都有独立外观与炮塔', () {
+      for (final variant in BossVariant.values) {
+        final visual = kBossVisuals[variant];
+        expect(visual, isNotNull, reason: '缺少 $variant 的外观');
+        expect(visual!.turrets, isNotEmpty);
+        expect(visual.path.getBounds().isEmpty, isFalse);
+      }
+      expect(
+        kBossVisuals[BossVariant.scorpion],
+        same(kEnemyVisuals[EnemyKind.boss]),
+      );
+      expect(leviathanHullPath.getBounds().width, greaterThan(100));
+      expect(kBossVisuals[BossVariant.leviathan]!.turrets, hasLength(3));
+    });
+
+    test('visualFor 按 Boss 形态与敌机类型取外观', () {
+      final leviathan = Enemy(
+        kind: EnemyKind.boss,
+        pattern: EnemyPattern.hover,
+        x: 200,
+        y: 90,
+        difficulty: 1,
+        variant: BossVariant.leviathan,
+      );
+      expect(visualFor(leviathan), same(kBossVisuals[BossVariant.leviathan]));
+      final fortress = Enemy(
+        kind: EnemyKind.fortress,
+        pattern: EnemyPattern.hover,
+        x: 200,
+        y: 120,
+        difficulty: 1,
+      );
+      expect(visualFor(fortress), same(kEnemyVisuals[EnemyKind.fortress]));
+    });
   });
 
   group('弹道与补给配色', () {
     test('敌弹外观覆盖全部非玩家弹种', () {
-      expect(kEnemyBulletColors.keys, containsAll([1, 2, 3]));
-      expect(kEnemyBulletColors.values.toSet(), hasLength(3));
+      expect(kEnemyBulletColors.keys, containsAll([1, 2, 3, 4]));
+      expect(kEnemyBulletColors.values.toSet(), hasLength(4));
     });
 
     test('补给配色覆盖全部类型', () {
@@ -45,6 +80,8 @@ void main() {
         EnemyKind.fighter,
         EnemyKind.bomber,
         EnemyKind.elite,
+        EnemyKind.interceptor,
+        EnemyKind.fortress,
       ]) {
         final spec = kEnemySpecs[kind]!;
         expect(spec.fireCount, greaterThan(0), reason: '$kind 应能开火');
@@ -53,10 +90,16 @@ void main() {
       }
       expect(kEnemySpecs[EnemyKind.bomber]!.fireSpread, greaterThan(0));
       expect(kEnemySpecs[EnemyKind.elite]!.fireCount, greaterThan(1));
+      expect(kEnemySpecs[EnemyKind.fortress]!.fireMode, EnemyFireMode.radial);
+      expect(
+        kEnemySpecs[EnemyKind.fortress]!.fireCount,
+        greaterThanOrEqualTo(8),
+      );
     });
 
-    test('侦察机与 Boss 不走进普通开火分支', () {
+    test('侦察机、自爆机与 Boss 不走进普通开火分支', () {
       expect(kEnemySpecs[EnemyKind.scout]!.fireCount, 0);
+      expect(kEnemySpecs[EnemyKind.drone]!.fireCount, 0);
       expect(kEnemySpecs[EnemyKind.boss]!.fireCount, 0);
     });
   });

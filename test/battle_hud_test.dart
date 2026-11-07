@@ -49,6 +49,16 @@ void main() {
     expect(find.text('×3'), findsNWidgets(2));
   });
 
+  testWidgets('急速射击生效时展示倒计时', (tester) async {
+    final controller = BattleController(size: const Size(400, 820));
+    addTearDown(controller.dispose);
+    controller.player.rapid = 5.4;
+    await pumpHud(tester, controller);
+
+    expect(find.byIcon(Icons.timer_rounded), findsOneWidget);
+    expect(find.text('6s'), findsOneWidget);
+  });
+
   testWidgets('Boss 出现时展示名称与血条', (tester) async {
     final controller = BattleController(size: const Size(400, 820))..wave = 4;
     controller.enemies.add(

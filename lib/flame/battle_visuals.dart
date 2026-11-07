@@ -15,6 +15,8 @@ class EnemyVisual {
     required this.path,
     this.coreOffsetY = 0,
     this.strokeWidth = 1.4,
+    this.turrets = const [],
+    this.glowRadius = 20,
   });
 
   final Color hull;
@@ -24,6 +26,10 @@ class EnemyVisual {
   final double coreOffsetY;
   final double strokeWidth;
   final Path path;
+
+  /// 炮塔相对坐标：Boss 侧翼与重装堡垒的炮口。
+  final List<Offset> turrets;
+  final double glowRadius;
 }
 
 final Path playerHullPath = Path()
@@ -104,6 +110,57 @@ final Map<EnemyKind, EnemyVisual> kEnemyVisuals = {
       ..lineTo(10, 10)
       ..close(),
   ),
+  EnemyKind.interceptor: EnemyVisual(
+    hull: const Color(0xFF6B4A1E),
+    trim: const Color(0xFFFFE082),
+    core: const Color(0xFFFFF3C4),
+    coreRadius: 2.8,
+    path: Path()
+      ..moveTo(0, 16)
+      ..lineTo(-7, 2)
+      ..lineTo(-17, -4)
+      ..lineTo(-8, -9)
+      ..lineTo(0, -5)
+      ..lineTo(8, -9)
+      ..lineTo(17, -4)
+      ..lineTo(7, 2)
+      ..close(),
+  ),
+  EnemyKind.drone: EnemyVisual(
+    hull: const Color(0xFF5A2118),
+    trim: const Color(0xFFFF7043),
+    core: const Color(0xFFFFD180),
+    coreRadius: 2.6,
+    path: Path()
+      ..moveTo(0, 11)
+      ..lineTo(-10, 2)
+      ..lineTo(-6, -8)
+      ..lineTo(0, -5)
+      ..lineTo(6, -8)
+      ..lineTo(10, 2)
+      ..close(),
+  ),
+  EnemyKind.fortress: EnemyVisual(
+    hull: const Color(0xFF2E2450),
+    trim: const Color(0xFFB388FF),
+    core: const Color(0xFFE1D4FF),
+    coreRadius: 6,
+    coreOffsetY: 1,
+    strokeWidth: 1.8,
+    turrets: const [Offset(-18, 6), Offset(18, 6)],
+    path: Path()
+      ..moveTo(0, 24)
+      ..lineTo(-12, 16)
+      ..lineTo(-28, 10)
+      ..lineTo(-24, -4)
+      ..lineTo(-12, -8)
+      ..lineTo(0, -14)
+      ..lineTo(12, -8)
+      ..lineTo(24, -4)
+      ..lineTo(28, 10)
+      ..lineTo(12, 16)
+      ..close(),
+  ),
   EnemyKind.elite: EnemyVisual(
     hull: const Color(0xFF5A1B4C),
     trim: const Color(0xFFFF6BC4),
@@ -130,9 +187,46 @@ final Map<EnemyKind, EnemyVisual> kEnemyVisuals = {
     core: const Color(0xFFFFD54F),
     coreRadius: 9,
     strokeWidth: 2.2,
+    turrets: const [Offset(-30, 8), Offset(30, 8)],
     path: bossHullPath,
   ),
 };
+
+/// 深渊利维坦：更宽的双翼机体，冷色涂装与三联炮塔。
+final Path leviathanHullPath = Path()
+  ..moveTo(0, 34)
+  ..lineTo(-16, 26)
+  ..lineTo(-42, 20)
+  ..lineTo(-52, 4)
+  ..lineTo(-38, -10)
+  ..lineTo(-20, -6)
+  ..lineTo(-10, -22)
+  ..lineTo(0, -32)
+  ..lineTo(10, -22)
+  ..lineTo(20, -6)
+  ..lineTo(38, -10)
+  ..lineTo(52, 4)
+  ..lineTo(42, 20)
+  ..lineTo(16, 26)
+  ..close();
+
+final Map<BossVariant, EnemyVisual> kBossVisuals = {
+  BossVariant.scorpion: kEnemyVisuals[EnemyKind.boss]!,
+  BossVariant.leviathan: EnemyVisual(
+    hull: const Color(0xFF123A4A),
+    trim: const Color(0xFF5FE3FF),
+    core: const Color(0xFF9BFFEA),
+    coreRadius: 10,
+    strokeWidth: 2.2,
+    turrets: const [Offset(-34, 12), Offset(0, 18), Offset(34, 12)],
+    glowRadius: 24,
+    path: leviathanHullPath,
+  ),
+};
+
+/// 渲染入口：Boss 按形态取外观，其余敌机按类型取外观。
+EnemyVisual visualFor(Enemy enemy) =>
+    enemy.isBoss ? kBossVisuals[enemy.variant]! : kEnemyVisuals[enemy.kind]!;
 
 const Color kPlayerHull = Color(0xFF2FA8FF);
 const Color kPlayerHullShadow = Color(0xFF10306B);
@@ -140,14 +234,12 @@ const Color kPlayerTrim = Color(0xFF9BE8FF);
 const Color kPlayerBulletGlow = Color(0xFF4FD1FF);
 const Color kPlayerBulletBody = Color(0xFFB7F4FF);
 const Color kEnemyEngineGlow = Color(0xFFFF8A5C);
-const Color kBossCoreGlow = Color(0xFFFFD54F);
-const Color kBossTurret = Color(0xFF6B2E63);
-const Color kBossTrim = Color(0xFFFF8FB8);
 
 const Map<int, Color> kEnemyBulletColors = {
   BulletKind.aimed: Color(0xFFFF9E6B),
   BulletKind.spread: Color(0xFFFF6BC4),
   BulletKind.boss: Color(0xFFFFD54F),
+  BulletKind.plasma: Color(0xFF6BE8FF),
 };
 
 /// 敌弹配色的 ARGB 整数表：批绘制直接取整数，避免逐帧构造 Color。
@@ -165,4 +257,5 @@ const Map<PowerUpKind, Color> kPowerUpColors = {
   PowerUpKind.shield: Color(0xFF7FD8FF),
   PowerUpKind.bomb: Color(0xFFFF6B6B),
   PowerUpKind.star: Color(0xFFFFD54F),
+  PowerUpKind.rapid: Color(0xFFFFE082),
 };

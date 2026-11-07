@@ -39,11 +39,33 @@ BattleController populatedController() {
       difficulty: 1,
     )..hitFlash = 0.05,
     Enemy(
+      kind: EnemyKind.interceptor,
+      pattern: EnemyPattern.dive,
+      x: 70,
+      y: 200,
+      difficulty: 1,
+    ),
+    Enemy(
+      kind: EnemyKind.drone,
+      pattern: EnemyPattern.chase,
+      x: 250,
+      y: 220,
+      difficulty: 1,
+    ),
+    Enemy(
+      kind: EnemyKind.fortress,
+      pattern: EnemyPattern.hover,
+      x: 330,
+      y: 260,
+      difficulty: 1,
+    )..entered = true,
+    Enemy(
       kind: EnemyKind.boss,
       pattern: EnemyPattern.hover,
       x: 200,
       y: 90,
       difficulty: 1,
+      variant: BossVariant.leviathan,
     )..entered = true,
   ]);
   controller.playerBullets.addAll([
@@ -96,12 +118,23 @@ BattleController populatedController() {
       fromPlayer: false,
       kind: 3,
     ),
+    Bullet(
+      x: 300,
+      y: 260,
+      vx: -30,
+      vy: 140,
+      radius: 4.6,
+      damage: 1,
+      fromPlayer: false,
+      kind: 4,
+    ),
   ]);
   controller.powerUps.addAll([
     PowerUp(x: 90, y: 380, kind: PowerUpKind.weapon),
     PowerUp(x: 150, y: 400, kind: PowerUpKind.shield),
     PowerUp(x: 230, y: 420, kind: PowerUpKind.bomb),
     PowerUp(x: 310, y: 440, kind: PowerUpKind.star),
+    PowerUp(x: 350, y: 460, kind: PowerUpKind.rapid),
   ]);
   controller.particles.addAll([
     Particle(

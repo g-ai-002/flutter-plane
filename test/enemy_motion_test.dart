@@ -42,6 +42,21 @@ void main() {
       expect(enemy.y, greaterThan(100));
     });
 
+    test('追踪模式横向对齐玩家并持续加速俯冲', () {
+      final enemy = buildEnemy(EnemyKind.drone, EnemyPattern.chase);
+      for (var i = 0; i < 30; i++) {
+        advanceEnemy(enemy, 1 / 60, targetX: 60);
+      }
+      expect(enemy.x, lessThan(200));
+      expect(enemy.vy, greaterThan(kEnemyFallSpeed));
+      final settledX = enemy.x;
+      for (var i = 0; i < 60; i++) {
+        advanceEnemy(enemy, 1 / 60, targetX: 60);
+      }
+      expect(enemy.x, closeTo(60, 0.5));
+      expect(enemy.x, lessThan(settledX));
+    });
+
     test('悬停模式先下降再巡航', () {
       final enemy = buildEnemy(EnemyKind.elite, EnemyPattern.hover, phase: 0.3);
       expect(enemy.entered, isFalse);

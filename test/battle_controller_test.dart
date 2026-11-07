@@ -222,6 +222,41 @@ void main() {
       expect(controller.player.invuln, greaterThan(0));
     });
 
+    test('急速补给开启限时射速提升且不会影响火力等级', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      controller.powerUps.add(
+        PowerUp(
+          x: controller.player.x,
+          y: controller.player.y,
+          kind: PowerUpKind.rapid,
+        ),
+      );
+      final level = controller.player.weaponLevel;
+      advance(controller, 0.02);
+      expect(controller.player.rapid, greaterThan(0));
+      expect(controller.player.weaponLevel, level);
+      expect(controller.popups.any((popup) => popup.text == '急速射击'), isTrue);
+
+      advance(controller, 0.5);
+      expect(controller.player.rapid, lessThan(9));
+    });
+
+    test('急速射击在相同时长内打出更多弹丸', () {
+      final normal = buildController();
+      final rapid = buildController()..player.rapid = 10;
+      addTearDown(normal.dispose);
+      addTearDown(rapid.dispose);
+
+      advance(normal, 0.7);
+      advance(rapid, 0.7);
+
+      expect(
+        rapid.playerBullets.length,
+        greaterThan(normal.playerBullets.length),
+      );
+    });
+
     test('炸弹清空敌弹并伤害全场敌机', () {
       final controller = buildController();
       addTearDown(controller.dispose);
@@ -367,6 +402,33 @@ void main() {
       expect(boss.entered, isTrue);
       expect(controller.enemyBullets, isNotEmpty);
       expect(controller.bossHpRatio, greaterThan(0));
+    });
+
+    test('第 8 波为利维坦，入场后发射等离子弹幕', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      controller.wave = 8;
+      expect(controller.bossVariant, BossVariant.leviathan);
+      expect(controller.bossName, '深渊利维坦');
+
+      final boss = Enemy(
+        kind: EnemyKind.boss,
+        pattern: EnemyPattern.hover,
+        x: 200,
+        y: -60,
+        difficulty: 1,
+        variant: BossVariant.leviathan,
+      );
+      controller.enemies.add(boss);
+      advance(controller, 3.2);
+      expect(boss.entered, isTrue);
+      expect(controller.enemyBullets, isNotEmpty);
+      expect(
+        controller.enemyBullets.every(
+          (bullet) => bullet.kind == BulletKind.plasma,
+        ),
+        isTrue,
+      );
     });
   });
 
