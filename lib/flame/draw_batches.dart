@@ -89,6 +89,26 @@ class CapsuleBatch {
   void flush(Canvas canvas) => _batch.flush(canvas);
 }
 
+/// 任意方向线段批绘制：爆炸碎片用它替代逐颗 save / rotate / drawRect。
+class SegmentBatch {
+  final DrawBatch _batch = DrawBatch.lines();
+
+  void add(
+    int argb,
+    double startX,
+    double startY,
+    double endX,
+    double endY,
+    double width,
+    double alpha,
+  ) {
+    _batch.add(argb, startX, startY, alpha, width);
+    _batch.add(argb, endX, endY, alpha, width);
+  }
+
+  void flush(Canvas canvas) => _batch.flush(canvas);
+}
+
 /// 单个分桶的坐标缓冲：容量按需翻倍，避免每帧重新分配列表。
 class _Bucket {
   _Bucket(this.color, this.width);

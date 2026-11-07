@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flame/components.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +32,7 @@ class BattleFieldComponent extends PositionComponent {
   final Paint _glow = Paint();
   final DotBatch _dots = DotBatch();
   final CapsuleBatch _capsules = CapsuleBatch();
+  final SegmentBatch _segments = SegmentBatch();
   final Map<String, TextPainter> _textCache = {};
 
   static const int _whiteArgb = 0xFFFFFFFF;
@@ -39,9 +41,7 @@ class BattleFieldComponent extends PositionComponent {
   static final int _playerBulletBodyArgb = kPlayerBulletBody.toARGB32();
 
   Size _backgroundSize = Size.zero;
-  Paint? _backgroundPaint;
-  Paint? _nebulaTopLeft;
-  Paint? _nebulaBottomRight;
+  ui.Picture? _backgroundPicture;
 
   static final RRect _powerUpBox = RRect.fromRectAndRadius(
     Rect.fromCenter(center: Offset.zero, width: 21, height: 21),
@@ -54,6 +54,17 @@ class BattleFieldComponent extends PositionComponent {
       controller.update(span);
       _flushEvents();
     });
+  }
+
+  @override
+  void onRemove() {
+    _backgroundPicture?.dispose();
+    _backgroundPicture = null;
+    for (final painter in _textCache.values) {
+      painter.dispose();
+    }
+    _textCache.clear();
+    super.onRemove();
   }
 
   void _flushEvents() {
@@ -125,40 +136,56 @@ class BattleFieldComponent extends PositionComponent {
 
   // ------------------------------------------------------------ 背景与星空
 
+  /// 背景是静态画面：按战场尺寸录制一次 [ui.Picture]，之后每帧只提交一次
+  /// 绘制，省掉三个全屏渐变着色器的重复求值与填充。
   void _drawBackground(Canvas canvas, Size world) {
-    if (_backgroundPaint == null || _backgroundSize != world) {
+    var picture = _backgroundPicture;
+    if (picture == null || _backgroundSize != world) {
       _backgroundSize = world;
       final rect = Rect.fromLTWH(0, 0, world.width, world.height);
-      _backgroundPaint = Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF070B1E), Color(0xFF0C1734), Color(0xFF05070F)],
-          stops: [0, 0.52, 1],
-        ).createShader(rect);
-      _nebulaTopLeft = Paint()
-        ..shader =
-            const RadialGradient(colors: [Color(0x335C2E91), Color(0x00000000)])
-                .createShader(
-                  Rect.fromCircle(
-                    center: Offset(world.width * 0.18, world.height * 0.18),
-                    radius: world.width * 0.85,
-                  ),
-                );
-      _nebulaBottomRight = Paint()
-        ..shader =
-            const RadialGradient(colors: [Color(0x2E1A6E8C), Color(0x00000000)])
-                .createShader(
-                  Rect.fromCircle(
-                    center: Offset(world.width * 0.9, world.height * 0.78),
-                    radius: world.width * 0.8,
-                  ),
-                );
+      final recorder = ui.PictureRecorder();
+      final background = Canvas(recorder);
+      background.drawRect(
+        rect,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF070B1E), Color(0xFF0C1734), Color(0xFF05070F)],
+            stops: [0, 0.52, 1],
+          ).createShader(rect),
+      );
+      background.drawRect(
+        rect,
+        Paint()
+          ..shader =
+              const RadialGradient(
+                colors: [Color(0x335C2E91), Color(0x00000000)],
+              ).createShader(
+                Rect.fromCircle(
+                  center: Offset(world.width * 0.18, world.height * 0.18),
+                  radius: world.width * 0.85,
+                ),
+              ),
+      );
+      background.drawRect(
+        rect,
+        Paint()
+          ..shader =
+              const RadialGradient(
+                colors: [Color(0x2E1A6E8C), Color(0x00000000)],
+              ).createShader(
+                Rect.fromCircle(
+                  center: Offset(world.width * 0.9, world.height * 0.78),
+                  radius: world.width * 0.8,
+                ),
+              ),
+      );
+      picture = recorder.endRecording();
+      _backgroundPicture?.dispose();
+      _backgroundPicture = picture;
     }
-    final rect = Rect.fromLTWH(0, 0, world.width, world.height);
-    canvas.drawRect(rect, _backgroundPaint!);
-    canvas.drawRect(rect, _nebulaTopLeft!);
-    canvas.drawRect(rect, _nebulaBottomRight!);
+    canvas.drawPicture(picture);
   }
 
   void _drawStars(Canvas canvas) {
@@ -282,20 +309,20 @@ class BattleFieldComponent extends PositionComponent {
     required double pulse,
     required bool hit,
   }) {
-    _fill.color = (hit ? Colors.white : visual.hull).withValues(alpha: appear);
+    _fill.color = _fade(hit ? Colors.white : visual.hull, appear);
     canvas.drawPath(visual.path, _fill);
     _stroke
-      ..color = (hit ? Colors.white : visual.trim).withValues(alpha: appear)
+      ..color = _fade(hit ? Colors.white : visual.trim, appear)
       ..strokeWidth = visual.strokeWidth;
     canvas.drawPath(visual.path, _stroke);
 
     final turretRadius = enemy.isBoss ? 6.5 : 4.6;
     final turretStroke = enemy.isBoss ? 1.2 : 1.1;
     for (final turret in visual.turrets) {
-      _fill.color = visual.hull.withValues(alpha: appear);
+      _fill.color = _fade(visual.hull, appear);
       canvas.drawCircle(turret, turretRadius, _fill);
       _stroke
-        ..color = visual.trim.withValues(alpha: appear)
+        ..color = _fade(visual.trim, appear)
         ..strokeWidth = turretStroke;
       canvas.drawCircle(turret, turretRadius, _stroke);
     }
@@ -429,22 +456,25 @@ class BattleFieldComponent extends PositionComponent {
             _stroke,
           );
         case ParticleKind.debris:
-          _fill.color = Color(particle.color).withValues(alpha: fade);
-          canvas.save();
-          canvas.translate(particle.x, particle.y);
-          canvas.rotate(particle.progress * 6);
-          canvas.drawRect(
-            Rect.fromCenter(
-              center: Offset.zero,
-              width: particle.size * 2.2,
-              height: particle.size * 0.9,
-            ),
-            _fill,
+          // 旋转的碎片本质上是一条短线段，并入线段批绘制后不再逐颗
+          // save / translate / rotate / drawRect。
+          final angle = particle.progress * 6;
+          final half = particle.size * 1.1;
+          final dx = math.cos(angle) * half;
+          final dy = math.sin(angle) * half;
+          _segments.add(
+            particle.color,
+            particle.x - dx,
+            particle.y - dy,
+            particle.x + dx,
+            particle.y + dy,
+            particle.size * 0.9,
+            fade,
           );
-          canvas.restore();
       }
     }
     _dots.flush(canvas);
+    _segments.flush(canvas);
   }
 
   void _drawPopups(Canvas canvas) {
@@ -459,6 +489,10 @@ class BattleFieldComponent extends PositionComponent {
       );
     }
   }
+
+  /// 不透明度拉满时直接复用原色，稳定帧里不再逐架新建 [Color]。
+  Color _fade(Color color, double alpha) =>
+      alpha >= 1 ? color : color.withValues(alpha: alpha);
 
   TextPainter _text(
     String text, {

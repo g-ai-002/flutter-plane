@@ -172,4 +172,32 @@ void main() {
       expect(canvas.calls.last.pointCount, 60);
     });
   });
+
+  group('任意方向线段批绘制', () {
+    test('碎片按任意角度成对写入，不依赖画布变换', () {
+      final batch = SegmentBatch();
+      final canvas = RecordingCanvas();
+
+      batch.add(0xFFFFD54F, 10, 20, 16, 14, 3, 1);
+      batch.flush(canvas);
+
+      final call = canvas.calls.single;
+      expect(call.mode, PointMode.lines);
+      expect(call.points, [10, 20, 16, 14]);
+      expect(call.strokeWidth, 3);
+    });
+
+    test('多个碎片合并进同一桶', () {
+      final batch = SegmentBatch();
+      final canvas = RecordingCanvas();
+
+      for (var i = 0; i < 8; i++) {
+        batch.add(0xFFFFD54F, i.toDouble(), 30, i + 5.0, 36, 2, 1);
+      }
+      batch.flush(canvas);
+
+      expect(canvas.calls, hasLength(1));
+      expect(canvas.calls.single.pointCount, 16);
+    });
+  });
 }
