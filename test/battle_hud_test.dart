@@ -78,6 +78,31 @@ void main() {
     expect(find.text('100%'), findsOneWidget);
   });
 
+  testWidgets('Boss 血条随独立通知器更新，无需重建整棵 HUD', (tester) async {
+    final controller = BattleController(size: const Size(400, 820))..start();
+    addTearDown(controller.dispose);
+    final boss = Enemy(
+      kind: EnemyKind.boss,
+      pattern: EnemyPattern.hover,
+      x: 200,
+      y: 100,
+      difficulty: 1,
+    );
+    controller.wave = 4;
+    controller.enemies.add(boss);
+    await pumpHud(tester, controller);
+    expect(find.text('100%'), findsOneWidget);
+
+    boss.hp = boss.maxHp * 0.5;
+    // 只推进逻辑，不触发控制器对 HUD 主体的通知。
+    for (var i = 0; i < 12; i++) {
+      controller.update(1 / 60);
+    }
+    await tester.pump();
+
+    expect(find.text('50%'), findsOneWidget);
+  });
+
   testWidgets('宽屏把 HUD 放到战场两侧', (tester) async {
     final controller = BattleController(size: const Size(400, 820));
     addTearDown(controller.dispose);

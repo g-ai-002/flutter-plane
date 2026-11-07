@@ -338,60 +338,69 @@ class BattleHud extends StatelessWidget {
       width: math.min(360, stage.width - 24),
       child: _panel(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+        // 血量走独立通知器：Boss 战期间只有这条血条重建，HUD 其余部分不动。
+        child: ValueListenableBuilder<int>(
+          valueListenable: controller.bossHp,
+          builder: (context, permille, _) {
+            final ratio = permille > 0
+                ? permille / 1000
+                : boss.hpRatio.clamp(0.0, 1.0);
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(
-                  Icons.warning_amber_rounded,
-                  size: 14,
-                  color: appCrimson,
-                ),
-                const SizedBox(width: 5),
-                Expanded(
-                  child: Text(
-                    controller.bossName,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: _ink,
-                      letterSpacing: 1,
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 14,
+                      color: appCrimson,
                     ),
-                  ),
-                ),
-                Text(
-                  '${(boss.hpRatio * 100).ceil()}%',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: appCrimson,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: Stack(
-                children: [
-                  Container(height: 6, color: const Color(0x33FFFFFF)),
-                  FractionallySizedBox(
-                    widthFactor: boss.hpRatio.clamp(0.0, 1.0),
-                    child: Container(
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [appCrimson, appAmber],
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: Text(
+                        controller.bossName,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: _ink,
+                          letterSpacing: 1,
                         ),
                       ),
                     ),
+                    Text(
+                      '${(ratio * 100).ceil()}%',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: appCrimson,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Stack(
+                    children: [
+                      Container(height: 6, color: const Color(0x33FFFFFF)),
+                      FractionallySizedBox(
+                        widthFactor: ratio,
+                        child: Container(
+                          height: 6,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [appCrimson, appAmber],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

@@ -27,6 +27,9 @@ class BattleEffects {
   /// 已消失但仍可复用的粒子对象。
   final List<Particle> _pool = [];
 
+  /// 阻力系数到衰减因子的缓存，每个更新步清空复用，不再逐步新建 Map。
+  final Map<int, double> _damping = {};
+
   void clear() {
     for (final particle in particles) {
       _recycle(particle);
@@ -52,12 +55,9 @@ class BattleEffects {
   }
 
   void update(double dt) {
-    // 阻力系数只有几种，按系数缓存一次衰减因子，避免每颗粒子都调用 exp。
-    final damping = <int, double>{};
-    double dampingOf(double drag) {
-      final key = (drag * 100).round();
-      return damping[key] ??= math.exp(-drag * dt);
-    }
+    // 阻力系数只有几种，按系数缓存一次衰减因子，避免每颗粒子都调用 exp；
+    // 缓存表跨步复用，热路径上不产生新的 Map 与闭包。
+    final damping = _damping..clear();
 
     // 原地压缩：把存活的粒子前移，死掉的直接回收，避免两次遍历与 removeWhere。
     var write = 0;
@@ -68,7 +68,12 @@ class BattleEffects {
         _recycle(particle);
         continue;
       }
-      final factor = dampingOf(particle.drag);
+      final key = (particle.drag * 100).round();
+      var factor = damping[key];
+      if (factor == null) {
+        factor = math.exp(-particle.drag * dt);
+        damping[key] = factor;
+      }
       particle.vx *= factor;
       particle.vy *= factor;
       particle.x += particle.vx * dt;
@@ -77,11 +82,15 @@ class BattleEffects {
     }
     if (write < particles.length) particles.length = write;
 
-    for (final popup in popups) {
+    var popupWrite = 0;
+    for (var read = 0; read < popups.length; read++) {
+      final popup = popups[read];
       popup.life -= dt;
+      if (popup.dead) continue;
       popup.y -= 24 * dt;
+      popups[popupWrite++] = popup;
     }
-    popups.removeWhere((popup) => popup.dead);
+    if (popupWrite < popups.length) popups.length = popupWrite;
   }
 
   void updateStars(double dt, Size world) {

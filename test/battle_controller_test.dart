@@ -471,5 +471,120 @@ void main() {
 
       expect(notifications, greaterThanOrEqualTo(8));
     });
+
+    test('Boss 战期间数值不变时不再按 10Hz 重建整个 HUD', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      controller.enemies.add(
+        Enemy(
+          kind: EnemyKind.boss,
+          pattern: EnemyPattern.hover,
+          x: 200,
+          y: -60,
+          difficulty: 1,
+        ),
+      );
+      // 保持无敌，避免 Boss 弹幕命中改变生命值而触发通知。
+      controller.player.invuln = 999;
+      advance(controller, 7);
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+
+      advance(controller, 1);
+
+      // 旧实现只要 Boss 在场就固定通知 10 次。
+      expect(notifications, lessThanOrEqualTo(3));
+    });
+
+    test('Boss 血量通过独立通知器更新，不依赖 HUD 重建', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      final boss = Enemy(
+        kind: EnemyKind.boss,
+        pattern: EnemyPattern.hover,
+        x: 200,
+        y: 100,
+        difficulty: 1,
+      );
+      controller.enemies.add(boss);
+      controller.player.invuln = 999;
+      advance(controller, 0.2);
+      expect(controller.bossHp.value, 1000);
+
+      final samples = <int>[];
+      controller.bossHp.addListener(() => samples.add(controller.bossHp.value));
+      boss.hp = boss.maxHp * 0.5;
+      advance(controller, 0.3);
+
+      expect(samples, isNotEmpty);
+      expect(samples.last, closeTo(500, 5));
+    });
+
+    test('Boss 被击破时血条立即归零并通知界面', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      final boss = Enemy(
+        kind: EnemyKind.boss,
+        pattern: EnemyPattern.hover,
+        x: 200,
+        y: 120,
+        difficulty: 1,
+      )..entered = true;
+      boss.hp = 1;
+      controller.enemies.add(boss);
+      controller.playerBullets.add(
+        Bullet(
+          x: 200,
+          y: 128,
+          vx: 0,
+          vy: -560,
+          radius: 3.4,
+          damage: 10,
+          fromPlayer: true,
+        ),
+      );
+
+      advance(controller, 0.03);
+
+      expect(controller.boss, isNull);
+      expect(controller.bossHp.value, 0);
+    });
+
+    test('同一步击破多架敌机只在 10Hz 刷新时合并通知', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      for (var i = 0; i < 5; i++) {
+        final enemy = Enemy(
+          kind: EnemyKind.scout,
+          pattern: EnemyPattern.straight,
+          x: 100 + i * 20,
+          y: 120,
+          difficulty: 1,
+        );
+        controller.enemies.add(enemy);
+        controller.playerBullets.add(
+          Bullet(
+            x: enemy.x,
+            y: 128,
+            vx: 0,
+            vy: -560,
+            radius: 3.4,
+            damage: 10,
+            fromPlayer: true,
+          ),
+        );
+      }
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+
+      // 首个逻辑步远早于第一次 HUD 刷新周期，击破不应逐个通知。
+      controller.update(1 / 60);
+      expect(controller.kills, 5);
+      expect(notifications, 0);
+
+      advance(controller, 0.2);
+      expect(notifications, greaterThanOrEqualTo(1));
+      expect(notifications, lessThanOrEqualTo(3));
+    });
   });
 }

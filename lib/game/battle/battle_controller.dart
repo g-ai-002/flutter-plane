@@ -58,6 +58,7 @@ class BattleController extends ChangeNotifier {
   List<Star> get stars => _effects.stars;
 
   final List<BattleEvent> _events = [];
+  final ValueNotifier<int> _bossHp = ValueNotifier<int>(0);
   Offset _moveAxis = Offset.zero;
   Size _size;
   int _highScore;
@@ -99,6 +100,9 @@ class BattleController extends ChangeNotifier {
 
   double get bossHpRatio => boss?.hpRatio ?? 0;
 
+  /// Boss 血量（千分比）：血条单独监听它，Boss 战期间不必重建整个 HUD。
+  ValueListenable<int> get bossHp => _bossHp;
+
   String get waveLabel {
     if (wave <= 0) return '待命';
     if (_director.bossWave) return 'BOSS 波';
@@ -135,6 +139,7 @@ class BattleController extends ChangeNotifier {
     _shootCooldown = 0;
     _dropPity = 0;
     _moveAxis = Offset.zero;
+    _bossHp.value = 0;
     _effects.resetStars(_size);
     phase = BattlePhase.playing;
     notifyListeners();
@@ -271,16 +276,28 @@ class BattleController extends ChangeNotifier {
     _hudTimer += dt;
     if (_hudTimer < kHudRefreshInterval) return;
     _hudTimer = 0;
-    // 开场提示需要连续淡出、Boss 血条会随命中变化，这两种情况保持 10Hz 刷新；
-    // 其余时间只在 HUD 可见数值真的变化时才通知，避免整棵界面空转重建。
+    _syncBossHp();
+    // 开场提示需要连续淡出，其余时间只在 HUD 可见数值真的变化时才通知。
+    // Boss 血条由独立的 bossHp 通知驱动，不再拖着整棵 HUD 按 10Hz 重建。
     final signature = _hudSignature();
-    if (elapsed >= hintDuration &&
-        boss == null &&
-        signature == _lastHudSignature) {
-      return;
-    }
+    if (elapsed >= hintDuration && signature == _lastHudSignature) return;
     _lastHudSignature = signature;
     notifyListeners();
+  }
+
+  /// 把 Boss 血量同步到独立通知器：只有血条订阅它，与 HUD 主体解耦。
+  void _syncBossHp() {
+    final target = boss;
+    final permille = target == null
+        ? 0
+        : (target.hpRatio * 1000).round().clamp(0, 1000);
+    if (_bossHp.value != permille) _bossHp.value = permille;
+  }
+
+  @override
+  void dispose() {
+    _bossHp.dispose();
+    super.dispose();
   }
 
   /// HUD 上可见数值的指纹，用于跳过没有变化的刷新。
@@ -378,12 +395,17 @@ class BattleController extends ChangeNotifier {
         variant: request.variant,
       ),
     );
+    // Boss 一入场就让血条读到满血，避免首帧短暂显示为空。
+    if (request.kind == EnemyKind.boss) _bossHp.value = 1000;
   }
 
   // ---------------------------------------------------------------- 敌机
 
   void _updateEnemies(double dt) {
-    for (final enemy in enemies) {
+    // 原地压缩：死掉的敌机直接跳过，避免每一步 removeWhere 新建闭包。
+    var write = 0;
+    for (var read = 0; read < enemies.length; read++) {
+      final enemy = enemies[read];
       if (enemy.dead) continue;
       enemy.age += dt;
       enemy.hitFlash = math.max(0, enemy.hitFlash - dt);
@@ -402,8 +424,9 @@ class BattleController extends ChangeNotifier {
           _updateEnemyFire(enemy, dt);
         }
       }
+      if (!enemy.dead) enemies[write++] = enemy;
     }
-    enemies.removeWhere((enemy) => enemy.dead);
+    if (write < enemies.length) enemies.length = write;
   }
 
   void _updateEnemyFire(Enemy enemy, double dt) {
@@ -504,6 +527,9 @@ class BattleController extends ChangeNotifier {
           color: 0xFFFFD54F,
         ),
       );
+      // Boss 血条要立即消失，这里单独通知一次；普通击破交给 10Hz 刷新合并。
+      _syncBossHp();
+      notifyListeners();
     } else {
       _emit(big ? BattleEvent.bigExplosion : BattleEvent.explosion);
       // 连续多架未掉落时强制补给一次，避免整局拿不到火力升级。
@@ -517,7 +543,6 @@ class BattleController extends ChangeNotifier {
         _dropPity++;
       }
     }
-    notifyListeners();
   }
 
   // ---------------------------------------------------------------- 弹道
@@ -542,13 +567,16 @@ class BattleController extends ChangeNotifier {
   // ---------------------------------------------------------------- 补给
 
   void _updatePowerUps(double dt) {
-    for (final item in powerUps) {
+    var write = 0;
+    for (var read = 0; read < powerUps.length; read++) {
+      final item = powerUps[read];
       item.age += dt;
       item.y += item.vy * dt;
       item.x += math.sin(item.age * 2.4) * 18 * dt;
       if (item.y > _size.height + kPowerUpCullMargin) item.dead = true;
+      if (!item.dead) powerUps[write++] = item;
     }
-    powerUps.removeWhere((item) => item.dead);
+    if (write < powerUps.length) powerUps.length = write;
   }
 
   void _dropAt(double x, double y) {
@@ -619,7 +647,6 @@ class BattleController extends ChangeNotifier {
       life: 0.4,
     );
     _emit(BattleEvent.powerUp);
-    notifyListeners();
   }
 
   // ---------------------------------------------------------------- 碰撞
@@ -710,7 +737,9 @@ class BattleController extends ChangeNotifier {
   void _collidePowerUps() {
     final px = player.x;
     final py = player.y;
-    for (final item in powerUps) {
+    var write = 0;
+    for (var read = 0; read < powerUps.length; read++) {
+      final item = powerUps[read];
       if (item.dead) continue;
       if (circlesOverlapXY(
         item.x,
@@ -722,8 +751,9 @@ class BattleController extends ChangeNotifier {
       )) {
         _collectPowerUp(item);
       }
+      if (!item.dead) powerUps[write++] = item;
     }
-    powerUps.removeWhere((item) => item.dead);
+    if (write < powerUps.length) powerUps.length = write;
   }
 
   void _hitPlayer() {
