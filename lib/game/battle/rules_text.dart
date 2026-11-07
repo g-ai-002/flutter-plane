@@ -31,3 +31,9 @@ List<String> comboHints() => [
       '$kComboTier2x / $kComboTier3x / $kComboTier4x 连击提升分数倍率。',
   '停火超过 $kComboWindow 秒连击归零，倍率最高 ×4。',
 ];
+
+/// 每日挑战说明。
+List<String> dailyChallengeHints() => [
+  '每天刷新固定种子与战场修正，独立计分并记录今日最佳与连续天数。',
+  '累计击破与成就在普通战斗和每日挑战中共同推进。',
+];

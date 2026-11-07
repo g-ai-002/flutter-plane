@@ -2,6 +2,8 @@ import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 
+import '../../game/achievements/achievement.dart';
+import '../../game/challenge/daily_challenge.dart';
 import '../../theme/app_theme.dart';
 import '../../utils/formatters.dart';
 import 'stat_text.dart';
@@ -15,8 +17,14 @@ class _GlassPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 小屏或解锁成就较多时允许面板内部滚动，按钮始终可达。
+    final maxHeight = (MediaQuery.sizeOf(context).height - 48).clamp(
+      240.0,
+      2000.0,
+    );
     return Container(
       width: width,
+      constraints: BoxConstraints(maxHeight: maxHeight),
       padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(22),
@@ -35,9 +43,11 @@ class _GlassPanel extends StatelessWidget {
           BoxShadow(color: Color(0x2235C8FF), blurRadius: 30),
         ],
       ),
-      child: DefaultTextStyle.merge(
-        style: const TextStyle(color: Color(0xFFE7EEFA)),
-        child: child,
+      child: SingleChildScrollView(
+        child: DefaultTextStyle.merge(
+          style: const TextStyle(color: Color(0xFFE7EEFA)),
+          child: child,
+        ),
       ),
     );
   }
@@ -149,7 +159,7 @@ class BattlePauseOverlay extends StatelessWidget {
   }
 }
 
-/// 结算遮罩：得分、最高分、波次与击破数。
+/// 结算遮罩：得分、最高分、波次、击破数与新解锁成就。
 class BattleResultOverlay extends StatelessWidget {
   const BattleResultOverlay({
     super.key,
@@ -161,6 +171,9 @@ class BattleResultOverlay extends StatelessWidget {
     required this.isRecord,
     required this.onRestart,
     required this.onExit,
+    this.challenge,
+    this.dailyBest = 0,
+    this.unlocked = const [],
   });
 
   final int score;
@@ -171,10 +184,14 @@ class BattleResultOverlay extends StatelessWidget {
   final bool isRecord;
   final VoidCallback onRestart;
   final VoidCallback onExit;
+  final DailyChallenge? challenge;
+  final int dailyBest;
+  final List<Achievement> unlocked;
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
+    final isChallenge = challenge != null;
     return _OverlayScrim(
       child: _GlassPanel(
         width: (width - 48).clamp(260.0, 380.0),
@@ -189,21 +206,30 @@ class BattleResultOverlay extends StatelessWidget {
                 color: appCrimson.withValues(alpha: 0.12),
                 border: Border.all(color: appCrimson.withValues(alpha: 0.5)),
               ),
-              child: const Icon(
-                Icons.rocket_launch_rounded,
-                color: appCrimson,
+              child: Icon(
+                isChallenge
+                    ? Icons.event_available_rounded
+                    : Icons.rocket_launch_rounded,
+                color: isChallenge ? appAmber : appCrimson,
                 size: 26,
               ),
             ),
             const SizedBox(height: 12),
-            const Text(
-              '战机坠毁',
-              style: TextStyle(
+            Text(
+              isChallenge ? '挑战结束' : '战机坠毁',
+              style: const TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 3,
               ),
             ),
+            if (isChallenge) ...[
+              const SizedBox(height: 4),
+              Text(
+                '${challenge!.dateLabel} · ${challenge!.modifier.label}',
+                style: const TextStyle(fontSize: 11, color: Color(0x99FFFFFF)),
+              ),
+            ],
             const SizedBox(height: 14),
             if (isRecord)
               Container(
@@ -217,9 +243,9 @@ class BattleResultOverlay extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(color: appAmber.withValues(alpha: 0.6)),
                 ),
-                child: const Text(
-                  '新纪录',
-                  style: TextStyle(
+                child: Text(
+                  isChallenge ? '今日新纪录' : '新纪录',
+                  style: const TextStyle(
                     fontSize: 10.5,
                     fontWeight: FontWeight.w800,
                     color: appAmber,
@@ -238,7 +264,9 @@ class BattleResultOverlay extends StatelessWidget {
               ),
             ),
             Text(
-              '最高分 ${formatScore(best)}',
+              isChallenge
+                  ? '今日最佳 ${formatScore(dailyBest)}'
+                  : '最高分 ${formatScore(best)}',
               style: const TextStyle(fontSize: 11.5, color: Color(0x99FFFFFF)),
             ),
             const SizedBox(height: 18),
@@ -259,13 +287,17 @@ class BattleResultOverlay extends StatelessWidget {
                 ],
               ),
             ),
+            if (unlocked.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _UnlockedAchievements(items: unlocked),
+            ],
             const SizedBox(height: 18),
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
                 onPressed: onRestart,
                 icon: const Icon(Icons.replay_rounded),
-                label: const Text('再来一局'),
+                label: Text(isChallenge ? '再次挑战' : '再来一局'),
                 style: FilledButton.styleFrom(
                   backgroundColor: appCyan,
                   foregroundColor: const Color(0xFF00243A),
@@ -299,4 +331,53 @@ class BattleResultOverlay extends StatelessWidget {
 
   Widget _divider() =>
       Container(width: 1, height: 26, color: const Color(0x22FFFFFF));
+}
+
+/// 结算面板里的成就提示：最多列出三项，避免遮挡主要战绩。
+class _UnlockedAchievements extends StatelessWidget {
+  const _UnlockedAchievements({required this.items});
+
+  final List<Achievement> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final shown = items.take(3).toList();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
+      decoration: BoxDecoration(
+        color: appAmber.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: appAmber.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.emoji_events_rounded, size: 14, color: appAmber),
+              const SizedBox(width: 5),
+              Text(
+                '解锁 ${items.length} 项成就',
+                style: const TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: appAmber,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            [
+              for (final item in shown) item.title,
+              if (items.length > shown.length) '等',
+            ].join(' · '),
+            style: const TextStyle(fontSize: 11, color: Color(0xCCFFFFFF)),
+          ),
+        ],
+      ),
+    );
+  }
 }

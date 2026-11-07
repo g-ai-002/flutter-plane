@@ -188,7 +188,7 @@ class Player {
 
   double x;
   double y;
-  int lives = 3;
+  int lives = startLives;
   int bombs = 2;
   int weaponLevel = 1;
 
@@ -210,6 +210,7 @@ class Player {
   bool alive = true;
 
   static const double radius = 11;
+  static const int startLives = 3;
   static const int maxLives = 5;
   static const int maxBombs = 3;
   static const int maxWeaponLevel = 6;

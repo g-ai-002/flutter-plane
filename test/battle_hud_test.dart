@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sky_fighter/game/battle/battle_controller.dart';
 import 'package:sky_fighter/game/battle/battle_types.dart';
+import 'package:sky_fighter/game/challenge/daily_challenge.dart';
 import 'package:sky_fighter/pages/widgets/battle_hud.dart';
 
 Future<void> pumpHud(WidgetTester tester, BattleController controller) async {
@@ -111,6 +112,21 @@ void main() {
     await tester.pump();
 
     expect(find.text('50%'), findsOneWidget);
+  });
+
+  testWidgets('每日挑战展示战场修正', (tester) async {
+    final controller = BattleController(
+      size: const Size(400, 820),
+      challenge: const DailyChallenge(
+        dateKey: '20261108',
+        seed: 7,
+        modifier: ChallengeModifier.barrage,
+      ),
+    )..start();
+    addTearDown(controller.dispose);
+    await pumpHud(tester, controller);
+
+    expect(find.text('挑战 · 弹幕压制'), findsOneWidget);
   });
 
   testWidgets('宽屏把 HUD 放到战场两侧', (tester) async {

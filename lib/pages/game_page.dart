@@ -6,10 +6,12 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../flame/sky_fighter_game.dart';
+import '../game/achievements/achievement.dart';
 import '../game/battle/battle_controller.dart';
 import '../game/battle/battle_keys.dart';
 import '../game/battle/battle_types.dart';
 import '../game/battle/battle_viewport.dart';
+import '../game/challenge/daily_challenge.dart';
 import '../providers/settings_provider.dart';
 import '../services/log_service.dart';
 import '../services/sound_service.dart';
@@ -20,7 +22,10 @@ import 'widgets/battle_overlays.dart';
 import 'widgets/space_backdrop.dart';
 
 class GamePage extends StatefulWidget {
-  const GamePage({super.key});
+  const GamePage({super.key, this.challenge});
+
+  /// 每日挑战配置；为空时进入普通战斗。
+  final DailyChallenge? challenge;
 
   @override
   State<GamePage> createState() => _GamePageState();
@@ -40,6 +45,8 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
   bool _resultVisible = false;
   bool _newRecord = false;
   bool _resultHandled = false;
+  int _dailyBest = 0;
+  List<Achievement> _newAchievements = const [];
 
   @override
   void initState() {
@@ -72,6 +79,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
       final controller = BattleController(
         size: world,
         highScore: settings.highScore,
+        challenge: widget.challenge,
       );
       final game = SkyFighterGame(
         controller: controller,
@@ -82,9 +90,11 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
       _controller = controller;
       _game = game;
       _worldSize = world;
+      final challenge = widget.challenge;
       LogService.info(
         '开始战斗: 战场 ${world.width.round()}x${world.height.round()}, '
-        '逻辑 ${settings.logicRate.label}, 历史最高 ${settings.highScore}',
+        '逻辑 ${settings.logicRate.label}, 历史最高 ${settings.highScore}'
+        '${challenge == null ? '' : ', 每日挑战 ${challenge.dateKey} ${challenge.modifier.label}'}',
       );
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -121,17 +131,28 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
     await Future<void>.delayed(const Duration(milliseconds: 1100));
     if (!mounted) return;
     final settings = context.read<SettingsProvider>();
-    final record = await settings.recordRun(
+    final outcome = await settings.finishRun(
       score: controller.score,
       wave: controller.wave,
+      kills: controller.kills,
+      bossKills: controller.bossKills,
+      maxCombo: controller.maxCombo,
+      challenge: widget.challenge,
     );
     if (!mounted) return;
     controller.setHighScore(settings.highScore);
+    if (outcome.unlocked.isNotEmpty) {
+      LogService.info(
+        '解锁成就: ${outcome.unlocked.map((item) => item.title).join('、')}',
+      );
+    }
     // 结算面板盖住战场后，战场只剩静止画面，停掉引擎避免继续 60fps 全量重绘。
     _game?.pauseEngine();
     setState(() {
       _resultVisible = true;
-      _newRecord = record;
+      _newRecord = outcome.isRecord;
+      _dailyBest = outcome.dailyBest;
+      _newAchievements = outcome.unlocked;
       _paused = false;
     });
   }
@@ -159,12 +180,18 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
     setState(() {
       _resultVisible = false;
       _newRecord = false;
+      _newAchievements = const [];
+      _dailyBest = 0;
       _paused = false;
     });
     _game?.resumeEngine();
     controller.start();
     _focusNode.requestFocus();
-    LogService.info('重新开始战斗');
+    LogService.info(
+      widget.challenge == null
+          ? '重新开始战斗'
+          : '重新开始每日挑战 ${widget.challenge!.modifier.label}',
+    );
   }
 
   void _exitToHome() {
@@ -286,6 +313,9 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
                           kills: controller.kills,
                           survived: controller.survived,
                           isRecord: _newRecord,
+                          challenge: widget.challenge,
+                          dailyBest: _dailyBest,
+                          unlocked: _newAchievements,
                           onRestart: _restart,
                           onExit: _exitToHome,
                         ),

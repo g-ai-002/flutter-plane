@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 
+import '../challenge/daily_challenge.dart';
 import 'battle_collision.dart';
 import 'battle_effects.dart';
 import 'battle_tuning.dart';
@@ -26,6 +27,7 @@ class BattleController extends ChangeNotifier {
     required Size size,
     int seed = 20261107,
     this._highScore = 0,
+    this.challenge,
   }) : _size = size,
        _seed = seed,
        _rng = math.Random(seed),
@@ -38,6 +40,13 @@ class BattleController extends ChangeNotifier {
     );
     _effects.resetStars(_size);
   }
+
+  /// 每日挑战配置；普通战斗为 null。
+  final DailyChallenge? challenge;
+
+  /// 当前战场修正，普通战斗使用中性数值。
+  ChallengeModifier get challengeModifier =>
+      challenge?.modifier ?? ChallengeModifier.standard;
 
   /// 开场操作提示的持续时间，与 HUD 的淡出时长保持一致。
   static const double hintDuration = kBattleHintDuration;
@@ -79,6 +88,11 @@ class BattleController extends ChangeNotifier {
   int kills = 0;
   int combo = 0;
   double comboTimer = 0;
+
+  /// 单局最高连击与击破 Boss 数，结算时写入累计战绩与成就。
+  int maxCombo = 0;
+  int bossKills = 0;
+
   double shake = 0;
   double flash = 0;
   double elapsed = 0;
@@ -115,11 +129,15 @@ class BattleController extends ChangeNotifier {
   /// 开始新一轮战斗，清空全部战场状态。
   void start() {
     _runs++;
-    _director = WaveDirector(seed: _seed + _runs * 7919);
-    player = Player(
-      x: _size.width / 2,
-      y: _size.height - kPlayerStartBottomOffset,
-    );
+    final modifier = challengeModifier;
+    _director = WaveDirector(seed: challenge?.seed ?? _seed + _runs * 7919);
+    player =
+        Player(x: _size.width / 2, y: _size.height - kPlayerStartBottomOffset)
+          ..lives = math.min(
+            Player.maxLives,
+            math.max(1, Player.startLives + modifier.startLivesDelta),
+          )
+          ..weaponLevel = modifier.startWeaponLevel;
     enemies.clear();
     playerBullets.clear();
     enemyBullets.clear();
@@ -132,6 +150,8 @@ class BattleController extends ChangeNotifier {
     kills = 0;
     combo = 0;
     comboTimer = 0;
+    maxCombo = 0;
+    bossKills = 0;
     shake = 0;
     flash = 0;
     elapsed = 0;
@@ -378,7 +398,7 @@ class BattleController extends ChangeNotifier {
   }
 
   void _spawnEnemy(SpawnRequest request) {
-    final difficulty = waveDifficulty(wave);
+    final difficulty = waveDifficulty(wave) * challengeModifier.enemyHpScale;
     enemies.add(
       Enemy(
         kind: request.kind,
@@ -423,6 +443,7 @@ class BattleController extends ChangeNotifier {
             targetX: player.x,
             targetY: player.y,
             out: enemyBullets,
+            speedScale: challengeModifier.enemyBulletSpeedScale,
           );
         }
       }
@@ -438,7 +459,8 @@ class BattleController extends ChangeNotifier {
     if (boss.attackTimer > 0) return;
 
     final cycle = boss.attackPhase % 4;
-    final speed = bossBarrageSpeed(wave);
+    final speed =
+        bossBarrageSpeed(wave) * challengeModifier.enemyBulletSpeedScale;
     boss.attackPhase++;
     boss.attackTimer = bossBarrageInterval(wave);
     enemyBullets.addAll(
@@ -464,8 +486,11 @@ class BattleController extends ChangeNotifier {
     enemy.dead = true;
     kills++;
     combo++;
+    maxCombo = math.max(maxCombo, combo);
     comboTimer = kComboWindow;
-    final gain = (enemy.spec.score * multiplier).round();
+    if (enemy.isBoss) bossKills++;
+    final gain = (enemy.spec.score * multiplier * challengeModifier.scoreScale)
+        .round();
     score += gain;
     final big = enemy.isBoss || enemy.kind == EnemyKind.elite;
     _effects.addPopup(
@@ -503,9 +528,10 @@ class BattleController extends ChangeNotifier {
     } else {
       _emit(big ? BattleEvent.bigExplosion : BattleEvent.explosion);
       // 连续多架未掉落时强制补给一次，避免整局拿不到火力升级。
+      final dropChance = (enemy.spec.dropChance * challengeModifier.dropScale)
+          .clamp(0.0, 1.0);
       final drop =
-          _rng.nextDouble() < enemy.spec.dropChance ||
-          _dropPity >= kDropPityLimit;
+          _rng.nextDouble() < dropChance || _dropPity >= kDropPityLimit;
       if (drop) {
         _dropAt(enemy.x, enemy.y);
         _dropPity = 0;

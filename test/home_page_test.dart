@@ -43,10 +43,7 @@ void main() {
     expect(find.text('12,345'), findsOneWidget);
     expect(find.text('6'), findsOneWidget);
     expect(find.text('3'), findsOneWidget);
-    expect(
-      find.textContaining('v${AppConstants.version}'),
-      findsOneWidget,
-    );
+    expect(find.textContaining('v${AppConstants.version}'), findsOneWidget);
   });
 
   testWidgets('玩法说明弹窗展示操作与规则', (tester) async {
@@ -74,6 +71,25 @@ void main() {
 
     expect(find.text('画面与性能'), findsOneWidget);
     expect(find.text('逻辑刷新率'), findsOneWidget);
+  });
+
+  testWidgets('首页展示每日挑战入口与今日进度', (tester) async {
+    await pumpHome(tester);
+
+    expect(find.text('每日挑战'), findsWidgets);
+    expect(find.textContaining('今日尚未出战'), findsOneWidget);
+    expect(find.byIcon(Icons.event_available_rounded), findsOneWidget);
+  });
+
+  testWidgets('成就入口进入成就页', (tester) async {
+    await pumpHome(tester);
+
+    await tester.tap(find.byTooltip('成就'));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('已解锁 0 / 13'), findsOneWidget);
+    expect(find.text('初次出击'), findsOneWidget);
   });
 
   testWidgets('深色模式按钮即时切换主题', (tester) async {

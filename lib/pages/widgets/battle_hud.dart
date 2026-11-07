@@ -267,10 +267,14 @@ class BattleHud extends StatelessWidget {
         ),
         if (column) const Spacer() else const SizedBox(width: 10),
         Text(
-          '火力 ${controller.player.weaponLevel}',
+          controller.challenge == null
+              ? '火力 ${controller.player.weaponLevel}'
+              : '挑战 · ${controller.challengeModifier.label}',
           style: TextStyle(
             fontSize: compact ? 10.5 : 11,
-            color: const Color(0xFF9BE8FF),
+            color: controller.challenge == null
+                ? const Color(0xFF9BE8FF)
+                : appAmber,
             fontWeight: FontWeight.w600,
           ),
         ),

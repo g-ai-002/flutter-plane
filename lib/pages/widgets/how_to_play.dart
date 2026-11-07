@@ -18,11 +18,11 @@ class _HowToPlayDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Dialog(
-      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 430),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 14),
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -73,6 +73,11 @@ class _HowToPlayDialog extends StatelessWidget {
                 lines: comboHints(),
                 accent: appAmber,
               ),
+              _Section(
+                icon: Icons.event_available_rounded,
+                title: '每日挑战',
+                lines: dailyChallengeHints(),
+              ),
               const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
@@ -107,7 +112,7 @@ class _Section extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final color = accent ?? colors.primary;
     return Padding(
-      padding: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.only(top: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -125,15 +130,15 @@ class _Section extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           ...lines.map(
             (line) => Padding(
-              padding: const EdgeInsets.only(bottom: 4, left: 22),
+              padding: const EdgeInsets.only(bottom: 3, left: 22),
               child: Text(
                 line,
                 style: TextStyle(
-                  fontSize: 12.5,
-                  height: 1.55,
+                  fontSize: 12.2,
+                  height: 1.5,
                   color: colors.onSurfaceVariant,
                 ),
               ),

@@ -3,11 +3,13 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../game/challenge/daily_challenge.dart';
 import '../providers/settings_provider.dart';
 import '../services/log_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/constants.dart';
 import '../utils/formatters.dart';
+import 'achievements_page.dart';
 import 'game_page.dart';
 import 'settings_page.dart';
 import 'widgets/how_to_play.dart';
@@ -21,6 +23,8 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
     final theme = Theme.of(context);
+    final challenge = DailyChallenge.today();
+    final progress = settings.challengeProgress(challenge);
     final wide =
         MediaQuery.sizeOf(context).width >= 940 &&
         MediaQuery.sizeOf(context).height >= 640;
@@ -68,7 +72,11 @@ class HomePage extends StatelessWidget {
                                     child: _Hero(
                                       settings: settings,
                                       wide: true,
+                                      challenge: challenge,
+                                      progress: progress,
                                       onStart: () => _startGame(context),
+                                      onStartChallenge: () =>
+                                          _startGame(context, challenge),
                                     ),
                                   ),
                                 ],
@@ -79,7 +87,11 @@ class HomePage extends StatelessWidget {
                               _Hero(
                                 settings: settings,
                                 wide: false,
+                                challenge: challenge,
+                                progress: progress,
                                 onStart: () => _startGame(context),
+                                onStartChallenge: () =>
+                                    _startGame(context, challenge),
                               ),
                             ],
                             const SizedBox(height: 18),
@@ -104,10 +116,15 @@ class HomePage extends StatelessWidget {
     );
   }
 
-  void _startGame(BuildContext context) {
-    LogService.info('进入战斗');
-    Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (_) => const GamePage()));
+  void _startGame(BuildContext context, [DailyChallenge? challenge]) {
+    LogService.info(
+      challenge == null
+          ? '进入战斗'
+          : '进入每日挑战 ${challenge.dateKey} ${challenge.modifier.label}',
+    );
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => GamePage(challenge: challenge)),
+    );
   }
 }
 
@@ -147,6 +164,17 @@ class _TopBar extends StatelessWidget {
         ),
         const Spacer(),
         IconButton(
+          tooltip: '成就',
+          onPressed: () => openAchievementsPage(context),
+          icon: Badge.count(
+            count: settings.achievementCount,
+            isLabelVisible: settings.achievementCount > 0,
+            backgroundColor: appAmber,
+            textColor: const Color(0xFF2A1A00),
+            child: const Icon(Icons.emoji_events_outlined, size: 21),
+          ),
+        ),
+        IconButton(
           tooltip: settings.darkMode ? '切换到浅色' : '切换到深色',
           onPressed: () => settings.setDarkMode(!settings.darkMode),
           icon: Icon(
@@ -170,12 +198,18 @@ class _Hero extends StatelessWidget {
   const _Hero({
     required this.settings,
     required this.wide,
+    required this.challenge,
+    required this.progress,
     required this.onStart,
+    required this.onStartChallenge,
   });
 
   final SettingsProvider settings;
   final bool wide;
+  final DailyChallenge challenge;
+  final ChallengeProgress progress;
   final VoidCallback onStart;
+  final VoidCallback onStartChallenge;
 
   @override
   Widget build(BuildContext context) {
@@ -236,13 +270,19 @@ class _Hero extends StatelessWidget {
             _FeaturePill(label: '竖版弹幕'),
             _FeaturePill(label: '僚机护航'),
             _FeaturePill(label: 'Boss 战'),
-            _FeaturePill(label: '连击倍率'),
-            _FeaturePill(label: '程序化音效'),
+            _FeaturePill(label: '每日挑战'),
+            _FeaturePill(label: '成就'),
           ],
         ),
         const SizedBox(height: 20),
         _StatRow(settings: settings),
-        const SizedBox(height: 22),
+        const SizedBox(height: 12),
+        _DailyChallengeCard(
+          challenge: challenge,
+          progress: progress,
+          onTap: onStartChallenge,
+        ),
+        const SizedBox(height: 20),
         _StartButton(onTap: onStart),
         const SizedBox(height: 10),
         Row(
@@ -357,6 +397,137 @@ class _StatTile extends StatelessWidget {
           labelFirst: true,
           valueSize: 17,
           labelSize: 9.5,
+        ),
+      ),
+    );
+  }
+}
+
+class _DailyChallengeCard extends StatelessWidget {
+  const _DailyChallengeCard({
+    required this.challenge,
+    required this.progress,
+    required this.onTap,
+  });
+
+  final DailyChallenge challenge;
+  final ChallengeProgress progress;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                colors.surface.withValues(alpha: 0.9),
+                appAmber.withValues(alpha: 0.09),
+              ],
+            ),
+            border: Border.all(color: appAmber.withValues(alpha: 0.45)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 11, 10, 11),
+            child: Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: appAmber.withValues(alpha: 0.14),
+                  ),
+                  child: const Icon(
+                    Icons.event_available_rounded,
+                    size: 20,
+                    color: appAmber,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          const Text(
+                            '每日挑战',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            challenge.dateLabel,
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                          if (progress.streak > 0) ...[
+                            const SizedBox(width: 6),
+                            Text(
+                              '连续 ${progress.streak} 天',
+                              style: const TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                color: appAmber,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${challenge.modifier.label} · '
+                        '${challenge.modifier.description}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          height: 1.35,
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        progress.playedToday
+                            ? '今日最佳 ${formatScore(progress.bestScore)} · '
+                                  '已战 ${progress.plays} 次'
+                            : '今日尚未出战 · 挑战独立计分',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: progress.playedToday
+                              ? appAmber
+                              : colors.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Icon(
+                  Icons.play_circle_fill_rounded,
+                  size: 28,
+                  color: appAmber.withValues(alpha: 0.85),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

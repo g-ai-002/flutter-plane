@@ -90,6 +90,7 @@ void updateEnemyFire(
   required double targetX,
   required double targetY,
   required List<Bullet> out,
+  double speedScale = 1,
 }) {
   final spec = enemy.spec;
   if (spec.fireCount <= 0) return;
@@ -97,12 +98,13 @@ void updateEnemyFire(
   if (enemy.fireCooldown > 0) return;
   enemy.fireCooldown = spec.fireInterval * enemyFireIntervalScale(wave);
   final origin = Offset(enemy.x, enemy.y);
+  final speed = spec.bulletSpeed * speedScale;
   if (spec.fireMode == EnemyFireMode.radial) {
     out.addAll(
       buildRadialVolley(
         origin: origin,
         count: spec.fireCount,
-        speed: spec.bulletSpeed,
+        speed: speed,
         kind: spec.bulletKind,
         phase: enemy.age * 0.45,
       ),
@@ -113,7 +115,7 @@ void updateEnemyFire(
     buildAimedVolley(
       origin: origin,
       target: Offset(targetX, targetY),
-      speed: spec.bulletSpeed,
+      speed: speed,
       count: spec.fireCount,
       spread: spec.fireSpread,
       kind: spec.bulletKind,
