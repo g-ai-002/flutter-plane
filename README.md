@@ -4,7 +4,7 @@
 覆盖 **Android / Windows / Web**，完全本地运行，无需联网。
 
 - 🎮 在线试玩：<http://192.168.31.120:8040/GTech/flutter-plane/>
-- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.1.1>
+- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.1.2>
 
 ## 特色
 
@@ -15,6 +15,8 @@
   背景音乐在运行时合成，仓库不存放图片、字体与音频文件。
 - **自适应战场**：竖屏手机、折叠屏、平板与桌面窗口自动选择战场比例；HUD 悬浮在战场四周，
   提示变化不会挤压战场。
+- **批绘制与对象池**：星空、粒子与弹幕按颜色分桶合并绘制，粒子对象回收复用；
+  240 颗弹幕的三层外观只需 12 次以内的绘制调用，密集弹幕下帧率更稳。
 - **可调逻辑刷新率**：30Hz 省电 / 60Hz 均衡 / 120Hz 顺滑（默认 60Hz），固定步长推进，
   低帧率下也不会出现子弹穿透。
 - **本地记录**：最高分、最远波次与出击次数自动保存；日志按天写入用户目录，方便排查问题。
@@ -55,7 +57,7 @@ flutter run -d windows
 flutter run -d chrome
 ```
 
-当前包含 121 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、波次与三端界面。
+当前包含 141 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制、波次与三端界面。
 
 Android 配置：`minSdk=35`、`targetSdk=37`、`compileSdk=37`，仅构建 `arm64-v8a`。
 Windows 与 Web 平台文件由 CI 在构建时生成，仓库不存放 `windows/`、`web/` 目录。
@@ -65,7 +67,7 @@ Windows 与 Web 平台文件由 CI 在构建时生成，仓库不存放 `windows
 ```
 lib/
   app.dart / main.dart          应用入口与主题、生命周期
-  flame/                        Flame 游戏、战场渲染与敌机视觉表
+  flame/                        Flame 游戏、战场渲染、批绘制与敌机视觉表
   game/battle/                  战斗逻辑：实体、波次、弹道、移动、碰撞、特效
   game/logic_rate.dart          30/60/120Hz 逻辑速率与固定步长
   pages/                        首页、战斗页、设置页与悬浮 HUD
@@ -89,9 +91,9 @@ test/                           单元测试与组件测试
 构建全部在 CI 完成。推送 Tag 不会自动出包，需要在 Actions 中手动运行 `build.yml` 并选定该 Tag：
 
 ```shell
-git tag -a v0.1.1 -m "v0.1.1: 重构战斗与渲染模块"
-git push origin v0.1.1
-tea actions workflows dispatch build.yml --ref refs/tags/v0.1.1 --follow
+git tag -a v0.1.2 -m "v0.1.2: 批绘制与碰撞热路径优化"
+git push origin v0.1.2
+tea actions workflows dispatch build.yml --ref refs/tags/v0.1.2 --follow
 ```
 
 产物包含 Android APK（aarch64）、Windows ZIP（x86_64）与 Web 压缩包，并发布到 Releases 与 Pages。
@@ -100,5 +102,6 @@ tea actions workflows dispatch build.yml --ref refs/tags/v0.1.1 --follow
 
 | 版本 | 说明 |
 | --- | --- |
+| v0.1.2 | 性能版本：弹幕/粒子/星空批绘制、粒子对象池、碰撞预筛，玩法不变 |
 | v0.1.1 | 重构版本：拆分战斗模块、弹道与敌机配置化、渲染查表，玩法不变 |
 | v0.1.0 | 首个可玩版本：完整弹幕战斗、四类敌机与 Boss、程序化音画、三端发布 |

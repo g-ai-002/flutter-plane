@@ -5,7 +5,7 @@ class AppConstants {
   AppConstants._();
 
   static const String appName = '苍穹战机';
-  static const String version = '0.1.1';
+  static const String version = '0.1.2';
   static const String tagline = '竖版弹幕射击 · 本地单机';
 
   static const String prefKeyDarkMode = 'dark_mode';

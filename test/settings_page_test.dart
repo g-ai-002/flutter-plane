@@ -34,7 +34,7 @@ void main() {
     expect(find.text('战绩'), findsOneWidget);
     expect(find.text('关于'), findsOneWidget);
     expect(find.text('逻辑刷新率'), findsOneWidget);
-    expect(find.textContaining('v0.1.1'), findsWidgets);
+    expect(find.textContaining('v0.1.2'), findsWidgets);
   });
 
   testWidgets('切换逻辑刷新率', (tester) async {
