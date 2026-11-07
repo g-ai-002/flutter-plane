@@ -44,15 +44,22 @@ class WaveDirector {
 
   /// 推进生成队列，返回本帧到期的敌机。
   List<SpawnRequest> update(double dt) {
-    if (_pending.isEmpty) return const [];
     final ready = <SpawnRequest>[];
+    updateInto(dt, ready);
+    return ready;
+  }
+
+  /// 推进生成队列，把本帧到期的敌机追加到 [out]。
+  ///
+  /// 战斗循环传入自己的复用列表，编队展开期间每步都不必新建中转 List。
+  void updateInto(double dt, List<SpawnRequest> out) {
+    if (_pending.isEmpty) return;
     for (final item in _pending) {
       item.delay -= dt;
     }
     while (_pending.isNotEmpty && _pending.first.delay <= 0) {
-      ready.add(_pending.removeAt(0).request);
+      out.add(_pending.removeAt(0).request);
     }
-    return ready;
   }
 
   /// 开始下一波：Boss 波只生成 Boss，其余按关卡组合编队。

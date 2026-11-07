@@ -60,6 +60,7 @@ class BattleController extends ChangeNotifier {
   List<Star> get stars => _effects.stars;
 
   final List<BattleEvent> _events = [];
+  final List<SpawnRequest> _spawnScratch = [];
   final ValueNotifier<int> _bossHp = ValueNotifier<int>(0);
   Offset _moveAxis = Offset.zero;
   Size _size;
@@ -351,7 +352,10 @@ class BattleController extends ChangeNotifier {
   // ---------------------------------------------------------------- 波次
 
   void _updateWaves(double dt) {
-    for (final request in _director.update(dt)) {
+    final spawns = _spawnScratch;
+    spawns.clear();
+    _director.updateInto(dt, spawns);
+    for (final request in spawns) {
       _spawnEnemy(request);
     }
     if (_director.spawning || enemies.isNotEmpty) return;
@@ -614,10 +618,24 @@ class BattleController extends ChangeNotifier {
   void _collidePlayerShots(double dt) {
     for (final bullet in playerBullets) {
       if (bullet.dead) continue;
+      // 扫掠起点只算一次：同一颗子弹要对每架敌机做判定，起点没有必要
+      // 在循环里重复乘减。
+      final fromX = bullet.x - bullet.vx * dt;
+      final fromY = bullet.y - bullet.vy * dt;
       for (final enemy in enemies) {
         if (enemy.dead) continue;
         final reach = enemy.radius + bullet.radius;
-        if (!_sweepHits(bullet, dt, enemy.x, enemy.y, reach)) continue;
+        if (!sweepHitsCircleXY(
+          centerX: enemy.x,
+          centerY: enemy.y,
+          reach: reach,
+          fromX: fromX,
+          fromY: fromY,
+          toX: bullet.x,
+          toY: bullet.y,
+        )) {
+          continue;
+        }
         bullet.dead = true;
         _damageEnemy(enemy, bullet.damage);
         _effects.spark(Offset(bullet.x, bullet.y), 0xFFB7F4FF);
