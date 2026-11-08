@@ -36,6 +36,19 @@ class StorageService {
     } catch (_) {}
   }
 
+  int _readInt(String key) => _p.getInt(key) ?? 0;
+
+  /// 递增计数：键不存在时从 0 开始。
+  Future<bool> _bump(SharedPreferences p, String key, [int by = 1]) =>
+      p.setInt(key, (p.getInt(key) ?? 0) + by);
+
+  /// 只在 [value] 更大的时候写入，返回是否刷新了记录。
+  Future<bool> _raise(SharedPreferences p, String key, int value) async {
+    if (value <= (p.getInt(key) ?? 0)) return false;
+    await p.setInt(key, value);
+    return true;
+  }
+
   bool get darkMode => _p.getBool(AppConstants.prefKeyDarkMode) ?? false;
   Future<void> setDarkMode(bool value) =>
       _write((p) => p.setBool(AppConstants.prefKeyDarkMode, value));
@@ -58,9 +71,9 @@ class StorageService {
   Future<void> setLogicRate(LogicRate value) =>
       _write((p) => p.setString(AppConstants.prefKeyLogicRate, value.name));
 
-  int get highScore => _p.getInt(AppConstants.prefKeyHighScore) ?? 0;
-  int get bestWave => _p.getInt(AppConstants.prefKeyBestWave) ?? 0;
-  int get runs => _p.getInt(AppConstants.prefKeyRuns) ?? 0;
+  int get highScore => _readInt(AppConstants.prefKeyHighScore);
+  int get bestWave => _readInt(AppConstants.prefKeyBestWave);
+  int get runs => _readInt(AppConstants.prefKeyRuns);
 
   /// 已解锁的成就 ID。
   Set<String> get unlockedAchievements =>
@@ -70,10 +83,9 @@ class StorageService {
     (p) => p.setStringList(AppConstants.prefKeyAchievements, ids.toList()),
   );
 
-  int get lifetimeKills => _p.getInt(AppConstants.prefKeyLifetimeKills) ?? 0;
-  int get lifetimeBossKills =>
-      _p.getInt(AppConstants.prefKeyLifetimeBossKills) ?? 0;
-  int get bestCombo => _p.getInt(AppConstants.prefKeyBestCombo) ?? 0;
+  int get lifetimeKills => _readInt(AppConstants.prefKeyLifetimeKills);
+  int get lifetimeBossKills => _readInt(AppConstants.prefKeyLifetimeBossKills);
+  int get bestCombo => _readInt(AppConstants.prefKeyBestCombo);
 
   /// 累计击破与最高连击，挑战模式同样计入。
   Future<void> recordLifetimeStats({
@@ -82,37 +94,26 @@ class StorageService {
     required int bestCombo,
   }) async {
     await _write((p) async {
-      if (kills > 0) {
-        await p.setInt(
-          AppConstants.prefKeyLifetimeKills,
-          (p.getInt(AppConstants.prefKeyLifetimeKills) ?? 0) + kills,
-        );
-      }
+      if (kills > 0) await _bump(p, AppConstants.prefKeyLifetimeKills, kills);
       if (bossKills > 0) {
-        await p.setInt(
-          AppConstants.prefKeyLifetimeBossKills,
-          (p.getInt(AppConstants.prefKeyLifetimeBossKills) ?? 0) + bossKills,
-        );
+        await _bump(p, AppConstants.prefKeyLifetimeBossKills, bossKills);
       }
-      if (bestCombo > (p.getInt(AppConstants.prefKeyBestCombo) ?? 0)) {
-        await p.setInt(AppConstants.prefKeyBestCombo, bestCombo);
-      }
+      await _raise(p, AppConstants.prefKeyBestCombo, bestCombo);
       return true;
     });
   }
 
-  int get challengeRuns => _p.getInt(AppConstants.prefKeyChallengeRuns) ?? 0;
-  int get challengeBestEver =>
-      _p.getInt(AppConstants.prefKeyChallengeBestEver) ?? 0;
+  int get challengeRuns => _readInt(AppConstants.prefKeyChallengeRuns);
+  int get challengeBestEver => _readInt(AppConstants.prefKeyChallengeBestEver);
   int get challengeBestStreak =>
-      _p.getInt(AppConstants.prefKeyChallengeBestStreak) ?? 0;
+      _readInt(AppConstants.prefKeyChallengeBestStreak);
 
   /// 今日挑战进度：跨天后最佳分数与次数归零，连续天数按昨天是否参与计算。
   ChallengeProgress challengeProgressFor(DailyChallenge challenge) {
     final dateKey = challenge.dateKey;
     final storedDate = _p.getString(AppConstants.prefKeyChallengeDate);
     final lastDate = _p.getString(AppConstants.prefKeyChallengeLastDate);
-    final storedStreak = _p.getInt(AppConstants.prefKeyChallengeStreak) ?? 0;
+    final storedStreak = _readInt(AppConstants.prefKeyChallengeStreak);
     final streak = lastDate == dateKey
         ? storedStreak
         : (lastDate == previousDateKey(dateKey) ? storedStreak : 0);
@@ -127,9 +128,9 @@ class StorageService {
     }
     return ChallengeProgress(
       dateKey: dateKey,
-      bestScore: _p.getInt(AppConstants.prefKeyChallengeBest) ?? 0,
-      bestWave: _p.getInt(AppConstants.prefKeyChallengeWave) ?? 0,
-      plays: _p.getInt(AppConstants.prefKeyChallengePlays) ?? 0,
+      bestScore: _readInt(AppConstants.prefKeyChallengeBest),
+      bestWave: _readInt(AppConstants.prefKeyChallengeWave),
+      plays: _readInt(AppConstants.prefKeyChallengePlays),
       streak: streak,
     );
   }
@@ -141,42 +142,26 @@ class StorageService {
     required int wave,
   }) async {
     await _write((p) async {
-      if (p.getString(AppConstants.prefKeyChallengeDate) == dateKey) {
-        if (score > (p.getInt(AppConstants.prefKeyChallengeBest) ?? 0)) {
-          await p.setInt(AppConstants.prefKeyChallengeBest, score);
-        }
-        if (wave > (p.getInt(AppConstants.prefKeyChallengeWave) ?? 0)) {
-          await p.setInt(AppConstants.prefKeyChallengeWave, wave);
-        }
-        await p.setInt(
-          AppConstants.prefKeyChallengePlays,
-          (p.getInt(AppConstants.prefKeyChallengePlays) ?? 0) + 1,
-        );
+      const dateKeyPref = AppConstants.prefKeyChallengeDate;
+      if (p.getString(dateKeyPref) == dateKey) {
+        await _raise(p, AppConstants.prefKeyChallengeBest, score);
+        await _raise(p, AppConstants.prefKeyChallengeWave, wave);
+        await _bump(p, AppConstants.prefKeyChallengePlays);
       } else {
         final lastDate = p.getString(AppConstants.prefKeyChallengeLastDate);
         final streak = lastDate == previousDateKey(dateKey)
-            ? (p.getInt(AppConstants.prefKeyChallengeStreak) ?? 0) + 1
+            ? _readInt(AppConstants.prefKeyChallengeStreak) + 1
             : 1;
-        await p.setString(AppConstants.prefKeyChallengeDate, dateKey);
+        await p.setString(dateKeyPref, dateKey);
         await p.setString(AppConstants.prefKeyChallengeLastDate, dateKey);
         await p.setInt(AppConstants.prefKeyChallengeStreak, streak);
-        await p.setInt(
-          AppConstants.prefKeyChallengeBestStreak,
-          streak > (p.getInt(AppConstants.prefKeyChallengeBestStreak) ?? 0)
-              ? streak
-              : (p.getInt(AppConstants.prefKeyChallengeBestStreak) ?? 0),
-        );
+        await _raise(p, AppConstants.prefKeyChallengeBestStreak, streak);
         await p.setInt(AppConstants.prefKeyChallengeBest, score);
         await p.setInt(AppConstants.prefKeyChallengeWave, wave);
         await p.setInt(AppConstants.prefKeyChallengePlays, 1);
       }
-      await p.setInt(
-        AppConstants.prefKeyChallengeRuns,
-        (p.getInt(AppConstants.prefKeyChallengeRuns) ?? 0) + 1,
-      );
-      if (score > (p.getInt(AppConstants.prefKeyChallengeBestEver) ?? 0)) {
-        await p.setInt(AppConstants.prefKeyChallengeBestEver, score);
-      }
+      await _bump(p, AppConstants.prefKeyChallengeRuns);
+      await _raise(p, AppConstants.prefKeyChallengeBestEver, score);
       return true;
     });
   }
@@ -185,17 +170,9 @@ class StorageService {
   Future<bool> recordRun({required int score, required int wave}) async {
     var record = false;
     await _write((p) async {
-      if (score > (p.getInt(AppConstants.prefKeyHighScore) ?? 0)) {
-        await p.setInt(AppConstants.prefKeyHighScore, score);
-        record = true;
-      }
-      if (wave > (p.getInt(AppConstants.prefKeyBestWave) ?? 0)) {
-        await p.setInt(AppConstants.prefKeyBestWave, wave);
-      }
-      await p.setInt(
-        AppConstants.prefKeyRuns,
-        (p.getInt(AppConstants.prefKeyRuns) ?? 0) + 1,
-      );
+      record = await _raise(p, AppConstants.prefKeyHighScore, score);
+      await _raise(p, AppConstants.prefKeyBestWave, wave);
+      await _bump(p, AppConstants.prefKeyRuns);
       return true;
     });
     return record;

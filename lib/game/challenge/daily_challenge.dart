@@ -94,26 +94,22 @@ class DailyChallenge {
   static DailyChallenge today() => DailyChallenge.forDate(DateTime.now());
 
   String get dateLabel {
-    final month = int.parse(dateKey.substring(4, 6));
-    final day = int.parse(dateKey.substring(6, 8));
-    final weekday = DateTime(
-      int.parse(dateKey.substring(0, 4)),
-      month,
-      day,
-    ).weekday;
-    return '$month月$day日 ${_kWeekdays[weekday - 1]}';
+    final date = parseDateKey(dateKey);
+    final weekday = _kWeekdays[date.weekday - 1];
+    return '${date.month}月${date.day}日 $weekday';
   }
 }
 
+/// 把 `yyyyMMdd` 解析成本地日期，挑战文案与连续天数共用同一套解析。
+DateTime parseDateKey(String dateKey) => DateTime(
+  int.parse(dateKey.substring(0, 4)),
+  int.parse(dateKey.substring(4, 6)),
+  int.parse(dateKey.substring(6, 8)),
+);
+
 /// 一个日期前一天的键，用于判断连续挑战天数。
-String previousDateKey(String dateKey) {
-  final date = DateTime(
-    int.parse(dateKey.substring(0, 4)),
-    int.parse(dateKey.substring(4, 6)),
-    int.parse(dateKey.substring(6, 8)),
-  ).subtract(const Duration(days: 1));
-  return formatDateKey(date);
-}
+String previousDateKey(String dateKey) =>
+    formatDateKey(parseDateKey(dateKey).subtract(const Duration(days: 1)));
 
 /// 今日挑战的进度快照：最佳分数、最佳波次、今日已战次数与连续天数。
 class ChallengeProgress {

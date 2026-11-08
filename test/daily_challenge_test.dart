@@ -50,6 +50,11 @@ void main() {
       expect(challenge.dateLabel, '11月8日 周日');
     });
 
+    test('日期键可解析回本地日期', () {
+      expect(parseDateKey('20261108'), DateTime(2026, 11, 8));
+      expect(parseDateKey('20260101'), DateTime(2026));
+    });
+
     test('前一天跨月与跨年', () {
       expect(previousDateKey('20261101'), '20261031');
       expect(previousDateKey('20260101'), '20251231');
