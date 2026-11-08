@@ -4,7 +4,7 @@
 覆盖 **Android / Windows / Web**，完全本地运行，无需联网。
 
 - 🎮 在线试玩：<http://192.168.31.120:8040/GTech/flutter-plane/>
-- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.4.1>
+- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.4.2>
 
 ## 特色
 
