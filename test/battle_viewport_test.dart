@@ -14,6 +14,14 @@ void main() {
       expect(field.top, 0);
     });
 
+    test('超高手机屏幕（20:9）同样铺满上下边缘', () {
+      final field = BattleViewport.fit(const Size(360, 800));
+      expect(field.width, closeTo(360, 1e-6));
+      expect(field.height, closeTo(800, 1e-6));
+      expect(field.top, 0);
+      expect(field.bottom, closeTo(800, 1e-6));
+    });
+
     test('超宽窗口限制最大宽高比并居中', () {
       final field = BattleViewport.fit(const Size(1600, 800));
       expect(field.height, closeTo(800, 1e-6));
@@ -22,11 +30,14 @@ void main() {
       expect(field.top, 0);
     });
 
-    test('极高窗口限制最小宽高比', () {
+    test('极高窄窗口仍然铺满高度，世界随之变高', () {
       final field = BattleViewport.fit(const Size(300, 900));
       expect(field.width, closeTo(300, 1e-6));
-      expect(field.height, closeTo(300 / BattleViewport.minAspect, 1e-6));
+      expect(field.height, closeTo(900, 1e-6));
       expect(field.center.dy, closeTo(450, 1e-6));
+      final world = BattleViewport.worldSize(field.size);
+      expect(world.width, kWorldWidth);
+      expect(world.height, closeTo(kWorldWidth * 3, 1e-6));
     });
 
     test('世界坐标宽度固定，高度随战场比例变化', () {
@@ -35,8 +46,24 @@ void main() {
       expect(world.height, closeTo(800, 1e-6));
     });
 
+    test('战场铺满舞台时可识别为满屏', () {
+      const stage = Size(400, 820);
+      expect(
+        BattleViewport.fillsStage(const Rect.fromLTWH(0, 0, 400, 820), stage),
+        isTrue,
+      );
+      expect(
+        BattleViewport.fillsStage(
+          BattleViewport.fit(const Size(1600, 800)),
+          const Size(1600, 800),
+        ),
+        isFalse,
+      );
+    });
+
     test('无效尺寸返回空矩形', () {
       expect(BattleViewport.fit(Size.zero), Rect.zero);
+      expect(BattleViewport.fit(const Size(0, 400)), Rect.zero);
     });
   });
 }

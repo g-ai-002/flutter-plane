@@ -262,70 +262,72 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
               _pressed.clear();
               _controller?.setMoveAxis(Offset.zero);
             },
-            child: SafeArea(
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final stage = Size(
-                    constraints.maxWidth,
-                    constraints.maxHeight,
-                  );
-                  final field = BattleViewport.fit(stage);
-                  _field = field;
-                  _ensureGame(BattleViewport.worldSize(field.size));
-                  final controller = _controller!;
-                  final game = _game!;
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final stage = Size(constraints.maxWidth, constraints.maxHeight);
+                final field = BattleViewport.fit(stage);
+                _field = field;
+                _ensureGame(BattleViewport.worldSize(field.size));
+                final controller = _controller!;
+                final game = _game!;
+                final playfield = Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerDown: _onPointerDown,
+                  onPointerMove: _onPointerMove,
+                  onPointerUp: (_) => _dragLast = null,
+                  onPointerCancel: (_) => _dragLast = null,
+                  child: GameWidget(key: ValueKey(game), game: game),
+                );
 
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      const SpaceBackdrop(brightness: Brightness.dark),
-                      Positioned.fromRect(
-                        rect: field,
-                        child: _PlayfieldFrame(
-                          child: Listener(
-                            behavior: HitTestBehavior.opaque,
-                            onPointerDown: _onPointerDown,
-                            onPointerMove: _onPointerMove,
-                            onPointerUp: (_) => _dragLast = null,
-                            onPointerCancel: (_) => _dragLast = null,
-                            child: GameWidget(key: ValueKey(game), game: game),
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    const SpaceBackdrop(brightness: Brightness.dark),
+                    Positioned.fromRect(
+                      rect: field,
+                      // 满屏时战场直接铺到屏幕边缘，不再加描边与圆角外框。
+                      child: BattleViewport.fillsStage(field, stage)
+                          ? playfield
+                          : _PlayfieldFrame(child: playfield),
+                    ),
+                    // 战场铺满整屏，HUD 单独避开刘海与手势条。
+                    Positioned.fill(
+                      child: SafeArea(
+                        child: AnimatedBuilder(
+                          animation: controller,
+                          builder: (context, _) => BattleHud(
+                            controller: controller,
+                            field: field,
+                            stage: stage,
+                            onPause: _togglePause,
+                            onBomb: _useBomb,
                           ),
                         ),
                       ),
-                      AnimatedBuilder(
-                        animation: controller,
-                        builder: (context, _) => BattleHud(
-                          controller: controller,
-                          field: field,
-                          stage: stage,
-                          onPause: _togglePause,
-                          onBomb: _useBomb,
-                        ),
+                    ),
+                    if (_paused)
+                      BattlePauseOverlay(
+                        onResume: _togglePause,
+                        onRestart: _restart,
+                        onExit: _exitToHome,
                       ),
-                      if (_paused)
-                        BattlePauseOverlay(
-                          onResume: _togglePause,
-                          onRestart: _restart,
-                          onExit: _exitToHome,
-                        ),
-                      if (_resultVisible)
-                        BattleResultOverlay(
-                          score: controller.score,
-                          best: controller.highScore,
-                          wave: controller.wave,
-                          kills: controller.kills,
-                          survived: controller.survived,
-                          isRecord: _newRecord,
-                          challenge: widget.challenge,
-                          dailyBest: _dailyBest,
-                          unlocked: _newAchievements,
-                          onRestart: _restart,
-                          onExit: _exitToHome,
-                        ),
-                    ],
-                  );
-                },
-              ),
+                    if (_resultVisible)
+                      BattleResultOverlay(
+                        score: controller.score,
+                        best: controller.highScore,
+                        wave: controller.wave,
+                        kills: controller.kills,
+                        survived: controller.survived,
+                        isRecord: _newRecord,
+                        challenge: widget.challenge,
+                        dailyBest: _dailyBest,
+                        unlocked: _newAchievements,
+                        onRestart: _restart,
+                        onExit: _exitToHome,
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         ),

@@ -38,6 +38,18 @@ void main() {
     expect(find.byIcon(Icons.pause_rounded), findsOneWidget);
   });
 
+  testWidgets('超高屏幕下战场铺满上下边缘', (tester) async {
+    await pumpGame(tester);
+    final field = find.byType(GameWidget<SkyFighterGame>);
+    // 400x820 的竖屏比例低于旧版 0.5 的下限，战场应铺满而不是居中留边。
+    expect(tester.getSize(field).height, closeTo(820, 1e-6));
+    expect(tester.getSize(field).width, closeTo(400, 1e-6));
+    expect(tester.getTopLeft(field).dy, closeTo(0, 1e-6));
+
+    final game = tester.widget<GameWidget<SkyFighterGame>>(field).game!;
+    expect(game.controller.size.height, closeTo(kWorldWidth * 820 / 400, 1e-6));
+  });
+
   testWidgets('暂停与继续战斗', (tester) async {
     await pumpGame(tester);
 
@@ -67,12 +79,11 @@ void main() {
 
   testWidgets('结算面板出现后停止引擎重绘，重开时恢复', (tester) async {
     await pumpGame(tester);
-    final game =
-        tester
-                .widget<GameWidget<SkyFighterGame>>(
-                  find.byType(GameWidget<SkyFighterGame>),
-                )
-                .game!;
+    final game = tester
+        .widget<GameWidget<SkyFighterGame>>(
+          find.byType(GameWidget<SkyFighterGame>),
+        )
+        .game!;
     final controller = game.controller;
     controller.player
       ..lives = 1
