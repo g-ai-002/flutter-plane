@@ -177,13 +177,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
     final controller = _controller;
     if (controller == null) return;
     _resultHandled = false;
-    setState(() {
-      _resultVisible = false;
-      _newRecord = false;
-      _newAchievements = const [];
-      _dailyBest = 0;
-      _paused = false;
-    });
+    setState(_resetResultState);
     _game?.resumeEngine();
     controller.start();
     _focusNode.requestFocus();
@@ -192,6 +186,15 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
           ? '重新开始战斗'
           : '重新开始每日挑战 ${widget.challenge!.modifier.label}',
     );
+  }
+
+  /// 收起结算面板并清空上一局的结果，重开与首次进入共用同一份状态。
+  void _resetResultState() {
+    _resultVisible = false;
+    _newRecord = false;
+    _newAchievements = const [];
+    _dailyBest = 0;
+    _paused = false;
   }
 
   void _exitToHome() {

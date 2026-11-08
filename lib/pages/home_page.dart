@@ -15,6 +15,7 @@ import 'settings_page.dart';
 import 'widgets/how_to_play.dart';
 import 'widgets/space_backdrop.dart';
 import 'widgets/stat_text.dart';
+import 'widgets/surface_panel.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -381,15 +382,11 @@ class _StatTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return Expanded(
-      child: Container(
+      child: SurfacePanel(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-        decoration: BoxDecoration(
-          color: colors.surface.withValues(alpha: 0.72),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: colors.outline.withValues(alpha: 0.7)),
-        ),
+        radius: 12,
+        opacity: 0.72,
         child: StatText(
           label: label,
           value: value,

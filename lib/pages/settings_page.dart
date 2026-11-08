@@ -10,8 +10,9 @@ import '../services/log_service.dart';
 import '../services/sound_service.dart';
 import '../utils/constants.dart';
 import '../utils/formatters.dart';
-import 'widgets/space_backdrop.dart';
+import 'widgets/page_shell.dart';
 import 'widgets/stat_text.dart';
+import 'widgets/surface_panel.dart';
 
 Future<void> openSettingsPage(BuildContext context) {
   return Navigator.of(context)
@@ -26,112 +27,88 @@ class SettingsPage extends StatelessWidget {
     final settings = context.watch<SettingsProvider>();
     final theme = Theme.of(context);
 
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(title: const Text('设置')),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          SpaceBackdrop(brightness: theme.brightness),
-          SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 60, 16, 28),
-              children: [
-                _Section(
-                  title: '画面与性能',
-                  icon: Icons.tune_rounded,
-                  children: [
-                    _LogicRatePicker(settings: settings),
-                    const SizedBox(height: 6),
-                    _SwitchRow(
-                      title: '深色模式',
-                      subtitle: '夜间与低光环境下更柔和',
-                      value: settings.darkMode,
-                      onChanged: settings.setDarkMode,
-                    ),
-                  ],
+    return PageShell(
+      title: '设置',
+      children: [
+        _Section(
+          title: '画面与性能',
+          icon: Icons.tune_rounded,
+          children: [
+            _LogicRatePicker(settings: settings),
+            const SizedBox(height: 6),
+            _SwitchRow(
+              title: '深色模式',
+              subtitle: '夜间与低光环境下更柔和',
+              value: settings.darkMode,
+              onChanged: settings.setDarkMode,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _Section(
+          title: '声音与反馈',
+          icon: Icons.volume_up_outlined,
+          children: [
+            _SwitchRow(
+              title: '音效',
+              subtitle: '射击、爆炸与拾取提示音',
+              value: settings.soundEnabled,
+              onChanged: settings.setSoundEnabled,
+            ),
+            _SwitchRow(
+              title: '背景音乐',
+              subtitle: '运行时合成的电子循环音乐',
+              value: settings.musicEnabled,
+              onChanged: settings.setMusicEnabled,
+            ),
+            _SwitchRow(
+              title: '震动反馈',
+              subtitle: '受伤、爆炸与拾取时轻微震动',
+              value: settings.hapticsEnabled,
+              onChanged: settings.setHapticsEnabled,
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        _Section(
+          title: '战绩',
+          icon: Icons.emoji_events_outlined,
+          children: [
+            StatStrip(
+              entries: [
+                StatStripEntry(
+                  label: '最高分',
+                  value: formatScore(settings.highScore),
                 ),
-                const SizedBox(height: 12),
-                _Section(
-                  title: '声音与反馈',
-                  icon: Icons.volume_up_outlined,
-                  children: [
-                    _SwitchRow(
-                      title: '音效',
-                      subtitle: '射击、爆炸与拾取提示音',
-                      value: settings.soundEnabled,
-                      onChanged: settings.setSoundEnabled,
-                    ),
-                    _SwitchRow(
-                      title: '背景音乐',
-                      subtitle: '运行时合成的电子循环音乐',
-                      value: settings.musicEnabled,
-                      onChanged: settings.setMusicEnabled,
-                    ),
-                    _SwitchRow(
-                      title: '震动反馈',
-                      subtitle: '受伤、爆炸与拾取时轻微震动',
-                      value: settings.hapticsEnabled,
-                      onChanged: settings.setHapticsEnabled,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                _Section(
-                  title: '战绩',
-                  icon: Icons.emoji_events_outlined,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: StatText(
-                            label: '最高分',
-                            value: formatScore(settings.highScore),
-                          ),
-                        ),
-                        Expanded(
-                          child: StatText(
-                            label: '最远波次',
-                            value: '${settings.bestWave}',
-                          ),
-                        ),
-                        Expanded(
-                          child: StatText(
-                            label: '出击次数',
-                            value: '${settings.runs}',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const _Section(
-                  title: '关于',
-                  icon: Icons.info_outline_rounded,
-                  children: [
-                    _InfoRow(label: '版本', value: 'v${AppConstants.version}'),
-                    _InfoRow(label: '运行方式', value: '本地单机 · 无需联网'),
-                    _InfoRow(label: '图形与音效', value: '运行时程序化生成'),
-                    SizedBox(height: 12),
-                    _LogSection(),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                Center(
-                  child: Text(
-                    'v${AppConstants.version} · 苍穹战机',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
+                StatStripEntry(label: '最远波次', value: '${settings.bestWave}'),
+                StatStripEntry(label: '出击次数', value: '${settings.runs}'),
               ],
             ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        const _Section(
+          title: '关于',
+          icon: Icons.info_outline_rounded,
+          children: [
+            _InfoRow(label: '版本', value: 'v${AppConstants.version}'),
+            _InfoRow(label: '运行方式', value: '本地单机 · 无需联网'),
+            _InfoRow(label: '图形与音效', value: '运行时程序化生成'),
+            SizedBox(height: 12),
+            _LogSection(),
+          ],
+        ),
+        const SizedBox(height: 18),
+        Center(
+          child: Text(
+            'v${AppConstants.version} · 苍穹战机',
+            style: TextStyle(
+              fontSize: 11,
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -150,13 +127,7 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
-      decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.86),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.outline.withValues(alpha: 0.7)),
-      ),
+    return SurfacePanel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

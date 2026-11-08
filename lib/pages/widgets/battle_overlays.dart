@@ -277,14 +277,17 @@ class BattleResultOverlay extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0x1AFFFFFF)),
               ),
-              child: Row(
-                children: [
-                  _stat('波次', '$wave'),
-                  _divider(),
-                  _stat('击破', '$kills'),
-                  _divider(),
-                  _stat('存活', formatDuration(survived)),
+              child: StatStrip(
+                entries: [
+                  StatStripEntry(label: '波次', value: '$wave'),
+                  StatStripEntry(label: '击破', value: '$kills'),
+                  StatStripEntry(label: '存活', value: formatDuration(survived)),
                 ],
+                valueSize: 17,
+                valueColor: Colors.white,
+                labelColor: const Color(0x99FFFFFF),
+                alignment: CrossAxisAlignment.center,
+                dividerColor: const Color(0x22FFFFFF),
               ),
             ),
             if (unlocked.isNotEmpty) ...[
@@ -317,20 +320,6 @@ class BattleResultOverlay extends StatelessWidget {
       ),
     );
   }
-
-  Widget _stat(String label, String value) => Expanded(
-    child: StatText(
-      label: label,
-      value: value,
-      valueSize: 17,
-      valueColor: Colors.white,
-      labelColor: const Color(0x99FFFFFF),
-      alignment: CrossAxisAlignment.center,
-    ),
-  );
-
-  Widget _divider() =>
-      Container(width: 1, height: 26, color: const Color(0x22FFFFFF));
 }
 
 /// 结算面板里的成就提示：最多列出三项，避免遮挡主要战绩。

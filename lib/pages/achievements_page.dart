@@ -5,8 +5,9 @@ import '../game/achievements/achievement.dart';
 import '../providers/settings_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
-import 'widgets/space_backdrop.dart';
+import 'widgets/page_shell.dart';
 import 'widgets/stat_text.dart';
+import 'widgets/surface_panel.dart';
 
 Future<void> openAchievementsPage(BuildContext context) {
   return Navigator.of(context)
@@ -32,37 +33,24 @@ class AchievementsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsProvider>();
-    final theme = Theme.of(context);
     final unlocked = settings.unlockedAchievements;
     final snapshot = settings.achievementSnapshot;
     final done = unlockedAchievementCount(unlocked);
 
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(title: const Text('成就')),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          SpaceBackdrop(brightness: theme.brightness),
-          SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 60, 16, 28),
-              children: [
-                _SummaryCard(done: done, snapshot: snapshot),
-                const SizedBox(height: 12),
-                for (final achievement in kAchievements) ...[
-                  _AchievementTile(
-                    achievement: achievement,
-                    unlocked: unlocked.contains(achievement.id),
-                    progress: achievement.progress(snapshot),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-              ],
-            ),
+    return PageShell(
+      title: '成就',
+      children: [
+        _SummaryCard(done: done, snapshot: snapshot),
+        const SizedBox(height: 12),
+        for (final achievement in kAchievements) ...[
+          _AchievementTile(
+            achievement: achievement,
+            unlocked: unlocked.contains(achievement.id),
+            progress: achievement.progress(snapshot),
           ),
+          const SizedBox(height: 8),
         ],
-      ),
+      ],
     );
   }
 }
@@ -77,13 +65,9 @@ class _SummaryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final total = kAchievements.length;
-    return Container(
+    return SurfacePanel(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.outline.withValues(alpha: 0.7)),
-      ),
+      opacity: 0.9,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -121,23 +105,17 @@ class _SummaryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: StatText(
-                  label: '累计击破',
-                  value: formatScore(snapshot.lifetimeKills),
-                ),
+          StatStrip(
+            entries: [
+              StatStripEntry(
+                label: '累计击破',
+                value: formatScore(snapshot.lifetimeKills),
               ),
-              Expanded(
-                child: StatText(
-                  label: 'Boss 击破',
-                  value: '${snapshot.lifetimeBossKills}',
-                ),
+              StatStripEntry(
+                label: 'Boss 击破',
+                value: '${snapshot.lifetimeBossKills}',
               ),
-              Expanded(
-                child: StatText(label: '最高连击', value: '${snapshot.bestCombo}'),
-              ),
+              StatStripEntry(label: '最高连击', value: '${snapshot.bestCombo}'),
             ],
           ),
         ],
@@ -162,17 +140,12 @@ class _AchievementTile extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final ratio = (progress / achievement.target).clamp(0.0, 1.0);
     final accent = unlocked ? appAmber : colors.onSurfaceVariant;
-    return Container(
+    return SurfacePanel(
       padding: const EdgeInsets.fromLTRB(12, 11, 14, 11),
-      decoration: BoxDecoration(
-        color: colors.surface.withValues(alpha: unlocked ? 0.92 : 0.7),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: unlocked
-              ? appAmber.withValues(alpha: 0.45)
-              : colors.outline.withValues(alpha: 0.6),
-        ),
-      ),
+      radius: 14,
+      opacity: unlocked ? 0.92 : 0.7,
+      borderColor: unlocked ? appAmber : null,
+      borderOpacity: unlocked ? 0.45 : 0.6,
       child: Row(
         children: [
           Container(
