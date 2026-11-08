@@ -4,7 +4,7 @@
 覆盖 **Android / Windows / Web**，完全本地运行，无需联网。
 
 - 🎮 在线试玩：<http://192.168.31.120:8040/GTech/flutter-plane/>
-- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.4.0>
+- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.4.1>
 
 ## 特色
 
@@ -29,7 +29,8 @@
 - **可调逻辑刷新率**：30Hz 省电 / 60Hz 均衡 / 120Hz 顺滑（默认 60Hz），固定步长推进，
   低帧率下也不会出现子弹穿透。
 - **本地记录**：最高分、最远波次与出击次数自动保存；日志按天写入用户目录，方便排查问题。
-- **单一出处**：拾取规则、HUD 条目、扫掠判定、战场边界与战机轮廓各自只有一份实现，
+- **单一出处**：拾取规则、HUD 条目、扫掠判定、战场边界与战机轮廓各自只有一份实现；
+  二级页面外壳、内容卡片、统计条、偏好读写与日期解析也各自收敛到一处，
   玩法说明由调参表生成，调整数值不会让界面文案过期。
 
 ## 操作
@@ -69,8 +70,8 @@ flutter run -d windows
 flutter run -d chrome
 ```
 
-当前包含 247 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制、视口裁剪、僚机、
-三形态 Boss、波次、HUD 刷新、拾取规则、每日挑战、成就判定与三端界面。
+当前包含 251 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制、视口裁剪、僚机、
+三形态 Boss、波次、HUD 刷新、拾取规则、每日挑战、成就判定、页面外壳与三端界面。
 
 Android 配置：`minSdk=35`、`targetSdk=37`、`compileSdk=37`，仅构建 `arm64-v8a`。
 Windows 与 Web 平台文件由 CI 在构建时生成，仓库不存放 `windows/`、`web/` 目录。
@@ -106,9 +107,9 @@ test/                           单元测试与组件测试
 构建全部在 CI 完成。推送 Tag 不会自动出包，需要在 Actions 中手动运行 `build.yml` 并选定该 Tag：
 
 ```shell
-git tag -a v0.4.0 -m "v0.4.0: 加入每日挑战与成就系统"
-git push origin v0.4.0
-tea actions workflows dispatch build.yml --ref refs/tags/v0.4.0 --follow
+git tag -a v0.4.1 -m "v0.4.1: 收敛页面脚手架与存储读写"
+git push origin v0.4.1
+tea actions workflows dispatch build.yml --ref refs/tags/v0.4.1 --follow
 ```
 
 产物包含 Android APK（aarch64）、Windows ZIP（x86_64）与 Web 压缩包，并发布到 Releases 与 Pages。
@@ -117,12 +118,12 @@ tea actions workflows dispatch build.yml --ref refs/tags/v0.4.0 --follow
 
 | 版本 | 说明 |
 | --- | --- |
+| v0.4.1 | 重构版本：二级页面外壳、内容卡片、统计条、偏好读写与日期解析收敛到单一出处 |
 | v0.4.0 | 内容版本：每日挑战与五种战场修正、13 项成就与成就页 |
 | v0.3.2 | 性能版本：弹幕两趟收集、文字与颜色分档缓存、视口裁剪、结算停引擎 |
 | v0.3.1 | 重构版本：拾取规则、HUD 条目、扫掠判定、战场边界与说明文案收敛到单一出处 |
 | v0.3.0 | 内容版本：僚机护航、幽影方舟 Boss 与相位弹幕、六级火力 |
-| v0.2.2 | 性能版本：背景画面缓存、碎片批绘制、HUD 刷新分层、音频合成下放后台 |
 
 | 更早版本 | 说明 |
 | --- | --- |
-| v0.2.1 及更早 | 集中战场数值与 Boss 节奏，完成首个可玩版本与三端发布 |
+| v0.2.2 及更早 | 性能优化与基础建设：背景缓存、碎片批绘制、完整战斗循环与三端发布 |
