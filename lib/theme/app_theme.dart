@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../utils/system_ui.dart';
+
 /// 深空蓝 + 霓虹青的视觉基调。
 const Color appCyan = Color(0xFF35C8FF);
 const Color appViolet = Color(0xFF7B6BFF);
@@ -92,6 +94,7 @@ ThemeData _buildBase({
       scrolledUnderElevation: 0,
       centerTitle: true,
       surfaceTintColor: Colors.transparent,
+      systemOverlayStyle: systemOverlayStyleFor(scaffoldColor),
       toolbarHeight: 52,
       titleTextStyle: TextStyle(
         fontSize: 17,

@@ -17,6 +17,7 @@ import '../services/log_service.dart';
 import '../services/sound_service.dart';
 import '../utils/app_font.dart';
 import '../utils/display_mode.dart';
+import '../utils/system_ui.dart';
 import 'widgets/battle_hud.dart';
 import 'widgets/battle_overlays.dart';
 import 'widgets/space_backdrop.dart';
@@ -243,7 +244,7 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     context.watch<SettingsProvider>();
 
-    return Scaffold(
+    final page = Scaffold(
       backgroundColor: const Color(0xFF05070F),
       body: ImmersiveFullscreen(
         child: PopScope(
@@ -332,6 +333,11 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
           ),
         ),
       ),
+    );
+    // 战场底色是深空黑，平板与宽屏下系统栏仍会显示，状态栏图标需用浅色。
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: systemOverlayStyleFor(const Color(0xFF05070F)),
+      child: page,
     );
   }
 }
