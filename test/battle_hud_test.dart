@@ -114,6 +114,119 @@ void main() {
     expect(find.text('50%'), findsOneWidget);
   });
 
+  testWidgets('紧凑布局得分、状态条与 Boss 血条之间留出间距', (tester) async {
+    final controller = BattleController(size: const Size(400, 820))..wave = 4;
+    controller.enemies.add(
+      Enemy(
+        kind: EnemyKind.boss,
+        pattern: EnemyPattern.hover,
+        x: 200,
+        y: 100,
+        difficulty: 1,
+      ),
+    );
+    addTearDown(controller.dispose);
+    await pumpHud(tester, controller);
+
+    final score = tester.getRect(find.byKey(const ValueKey('hud-score')));
+    final status = tester.getRect(find.byKey(const ValueKey('hud-status')));
+    final boss = tester.getRect(find.byKey(const ValueKey('hud-boss')));
+
+    expect(status.top - score.bottom, greaterThanOrEqualTo(8));
+    expect(boss.top - status.bottom, greaterThanOrEqualTo(8));
+    expect(boss.bottom, lessThan(820));
+  });
+
+  testWidgets('窄屏顶部 HUD 在满状态与连击下不溢出', (tester) async {
+    final controller = BattleController(size: const Size(320, 640))
+      ..wave = 4
+      ..combo = 30;
+    controller.player
+      ..wingmen = 2
+      ..rapid = 5;
+    controller.enemies.add(
+      Enemy(
+        kind: EnemyKind.boss,
+        pattern: EnemyPattern.hover,
+        x: 160,
+        y: 100,
+        difficulty: 1,
+      ),
+    );
+    addTearDown(controller.dispose);
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BattleHud(
+            controller: controller,
+            field: const Rect.fromLTWH(0, 0, 320, 640),
+            stage: const Size(320, 640),
+            onPause: () {},
+            onBomb: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('hud-boss')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Boss 中途出现时血条跟随 HUD 重建自动显示', (tester) async {
+    final controller = BattleController(size: const Size(400, 820))..start();
+    // 跳过开场提示，避免提示淡出掩盖 Boss 出现带来的唯一一次通知。
+    controller.elapsed = BattleController.hintDuration + 1;
+    addTearDown(controller.dispose);
+    await tester.binding.setSurfaceSize(const Size(400, 820));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) => BattleHud(
+              controller: controller,
+              field: const Rect.fromLTWH(0, 0, 400, 820),
+              stage: const Size(400, 820),
+              onPause: () {},
+              onBomb: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('hud-boss')), findsNothing);
+
+    controller.wave = 4;
+    final boss = Enemy(
+      kind: EnemyKind.boss,
+      pattern: EnemyPattern.hover,
+      x: 200,
+      y: 100,
+      difficulty: 1,
+    );
+    controller.enemies.add(boss);
+    for (var i = 0; i < 12; i++) {
+      controller.update(1 / 60);
+    }
+    await tester.pump();
+
+    expect(find.text('赤蝎母舰'), findsOneWidget);
+    expect(find.text('100%'), findsOneWidget);
+
+    controller.enemies.remove(boss);
+    for (var i = 0; i < 12; i++) {
+      controller.update(1 / 60);
+    }
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('hud-boss')), findsNothing);
+  });
+
   testWidgets('每日挑战展示战场修正', (tester) async {
     final controller = BattleController(
       size: const Size(400, 820),

@@ -317,6 +317,8 @@ class BattleController extends ChangeNotifier {
     combo,
     multiplier,
     phase,
+    // Boss 的出现与被击破不改变任何数值，但血条要随 HUD 一起显隐。
+    boss?.hashCode ?? 0,
   );
 
   // ---------------------------------------------------------------- 玩家

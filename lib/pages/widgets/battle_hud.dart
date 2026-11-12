@@ -43,7 +43,7 @@ class BattleHud extends StatelessWidget {
           ..._wideLayout(leftMargin, rightMargin)
         else
           ..._compactLayout(),
-        if (controller.boss != null) _bossBar(wide),
+        if (wide && controller.boss != null) _bossBar(),
         _hint(),
       ],
     );
@@ -52,19 +52,48 @@ class BattleHud extends StatelessWidget {
   // ---------------------------------------------------------------- 紧凑布局
 
   List<Widget> _compactLayout() => [
-    Positioned(left: 10, top: 8, child: _scorePanel(compact: true)),
     Positioned(
-      right: 8,
+      left: 10,
       top: 8,
-      child: _roundButton(
-        icon: Icons.pause_rounded,
-        tooltip: '暂停',
-        onTap: onPause,
+      right: 8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _scorePanel(compact: true),
+              const Spacer(),
+              _roundButton(
+                icon: Icons.pause_rounded,
+                tooltip: '暂停',
+                onTap: onPause,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _statusStrip(),
+              if (controller.combo >= 2) _comboBadge(),
+            ],
+          ),
+          if (controller.boss != null) ...[
+            const SizedBox(height: 12),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 360),
+                child: _bossBarContent(),
+              ),
+            ),
+          ],
+        ],
       ),
     ),
-    if (controller.combo >= 2)
-      Positioned(right: 10, top: 62, child: _comboBadge()),
-    Positioned(left: 10, top: 76, child: _statusStrip()),
     Positioned(left: 10, bottom: 10, child: _wavePanel(compact: true)),
     Positioned(right: 12, bottom: 12, child: _bombButton()),
   ];
@@ -119,24 +148,28 @@ class BattleHud extends StatelessWidget {
 
   // ---------------------------------------------------------------- 组件
 
-  Widget _panel({required Widget child, EdgeInsets? padding}) => Container(
-    padding: padding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-    decoration: BoxDecoration(
-      color: const Color(0xC20A1326),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: const Color(0x33FFFFFF)),
-      boxShadow: const [
-        BoxShadow(
-          color: Color(0x66000000),
-          blurRadius: 12,
-          offset: Offset(0, 4),
+  Widget _panel({Key? key, required Widget child, EdgeInsets? padding}) =>
+      Container(
+        key: key,
+        padding:
+            padding ?? const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: const Color(0xC20A1326),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x33FFFFFF)),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x66000000),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
         ),
-      ],
-    ),
-    child: child,
-  );
+        child: child,
+      );
 
   Widget _scorePanel({bool compact = false}) => _panel(
+    key: const ValueKey('hud-score'),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -180,6 +213,7 @@ class BattleHud extends StatelessWidget {
   Widget _statusStrip() {
     final stats = _statusStats();
     return _panel(
+      key: const ValueKey('hud-status'),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -282,79 +316,82 @@ class BattleHud extends StatelessWidget {
     ),
   );
 
-  Widget _bossBar(bool wide) {
+  Widget _bossBar() => Positioned(
+    left: (stage.width - math.min(360, stage.width - 24)) / 2,
+    top: 14,
+    width: math.min(360, stage.width - 24),
+    child: _bossBarContent(),
+  );
+
+  Widget _bossBarContent() {
     final boss = controller.boss;
     if (boss == null) return const SizedBox.shrink();
-    return Positioned(
-      left: (stage.width - math.min(360, stage.width - 24)) / 2,
-      top: wide ? 14 : 112,
-      width: math.min(360, stage.width - 24),
-      child: _panel(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-        // 血量走独立通知器：Boss 战期间只有这条血条重建，HUD 其余部分不动。
-        child: ValueListenableBuilder<int>(
-          valueListenable: controller.bossHp,
-          builder: (context, permille, _) {
-            final ratio = permille > 0
-                ? permille / 1000
-                : boss.hpRatio.clamp(0.0, 1.0);
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.warning_amber_rounded,
-                      size: 14,
-                      color: appCrimson,
-                    ),
-                    const SizedBox(width: 5),
-                    Expanded(
-                      child: Text(
-                        controller.bossName,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: _ink,
-                          letterSpacing: 1,
-                        ),
+    return _panel(
+      key: const ValueKey('hud-boss'),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      // 血量走独立通知器：Boss 战期间只有这条血条重建，HUD 其余部分不动。
+      child: ValueListenableBuilder<int>(
+        valueListenable: controller.bossHp,
+        builder: (context, permille, _) {
+          final ratio = permille > 0
+              ? permille / 1000
+              : boss.hpRatio.clamp(0.0, 1.0);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    size: 14,
+                    color: appCrimson,
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      controller.bossName,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: _ink,
+                        letterSpacing: 1,
                       ),
                     ),
-                    Text(
-                      '${(ratio * 100).ceil()}%',
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: appCrimson,
+                  ),
+                  Text(
+                    '${(ratio * 100).ceil()}%',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: appCrimson,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Stack(
+                  children: [
+                    Container(height: 6, color: const Color(0x33FFFFFF)),
+                    FractionallySizedBox(
+                      widthFactor: ratio,
+                      child: Container(
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [appCrimson, appAmber],
+                          ),
+                        ),
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: Stack(
-                    children: [
-                      Container(height: 6, color: const Color(0x33FFFFFF)),
-                      FractionallySizedBox(
-                        widthFactor: ratio,
-                        child: Container(
-                          height: 6,
-                          decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [appCrimson, appAmber],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            );
-          },
-        ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

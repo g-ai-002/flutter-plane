@@ -612,6 +612,32 @@ void main() {
       expect(notifications, lessThanOrEqualTo(3));
     });
 
+    test('Boss 出现与被击破时主动通知 HUD 显隐血条', () {
+      final controller = buildController();
+      addTearDown(controller.dispose);
+      // 跳过开场提示的持续刷新，同时停在首波抵达之前。
+      controller.elapsed = BattleController.hintDuration + 1;
+      controller.player.invuln = 999;
+      var notifications = 0;
+      controller.addListener(() => notifications++);
+
+      final boss = Enemy(
+        kind: EnemyKind.boss,
+        pattern: EnemyPattern.hover,
+        x: 200,
+        y: 100,
+        difficulty: 1,
+      );
+      controller.enemies.add(boss);
+      advance(controller, 0.15);
+      expect(notifications, greaterThan(0));
+
+      notifications = 0;
+      controller.enemies.remove(boss);
+      advance(controller, 0.15);
+      expect(notifications, greaterThan(0));
+    });
+
     test('Boss 血量通过独立通知器更新，不依赖 HUD 重建', () {
       final controller = buildController();
       addTearDown(controller.dispose);
