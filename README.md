@@ -4,14 +4,14 @@
 覆盖 **Android / Windows / Web**，完全本地运行，无需联网。
 
 - 🎮 在线试玩：<http://192.168.31.120:8040/GTech/flutter-plane/>
-- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.4.2>
+- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.4.3>
 
 ## 特色
 
 - **完整战斗循环**：六级弹道光束、僚机护航、护盾、全屏炸弹、急速射击、连击倍率（最高 ×4）与波次递增难度。
 - **七类敌机 + 三形态 Boss**：侦察机、战斗机、轰炸机、精英机、截击机、自爆无人机与重装堡垒
   各有移动与开火方式；每 4 波迎战 Boss，赤蝎母舰、深渊利维坦与幽影方舟依次登场，
-  各四段弹幕并带独立血条。
+  各四段弹幕并带随出场即时显示的独立血条。
 - **僚机编队**：拾取僚机补给召唤护航机，最多两架，跟随走位并持续向外侧补射。
 - **每日挑战**：每天固定随机种子与一种战场修正（弹幕压制 / 重装舰队 / 补给管制 /
   单机突入 / 火力演习），独立记录今日最佳、出战次数与连续参与天数。
@@ -70,7 +70,7 @@ flutter run -d windows
 flutter run -d chrome
 ```
 
-当前包含 254 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制、视口裁剪、僚机、
+当前包含 260 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制、视口裁剪、僚机、
 三形态 Boss、波次、HUD 刷新、拾取规则、每日挑战、成就判定、页面外壳与三端界面。
 
 Android 配置：`minSdk=35`、`targetSdk=37`、`compileSdk=37`，仅构建 `arm64-v8a`。
@@ -107,9 +107,9 @@ test/                           单元测试与组件测试
 构建全部在 CI 完成。推送 Tag 不会自动出包，需要在 Actions 中手动运行 `build.yml` 并选定该 Tag：
 
 ```shell
-git tag -a v0.4.2 -m "v0.4.2: 战场上下铺满屏幕边缘"
-git push origin v0.4.2
-tea actions workflows dispatch build.yml --ref refs/tags/v0.4.2 --follow
+git tag -a v0.4.3 -m "v0.4.3: 修复 Boss 血条不可见与 HUD 拥挤"
+git push origin v0.4.3
+tea actions workflows dispatch build.yml --ref refs/tags/v0.4.3 --follow
 ```
 
 产物包含 Android APK（aarch64）、Windows ZIP（x86_64）与 Web 压缩包，并发布到 Releases 与 Pages。
@@ -118,12 +118,12 @@ tea actions workflows dispatch build.yml --ref refs/tags/v0.4.2 --follow
 
 | 版本 | 说明 |
 | --- | --- |
+| v0.4.3 | 修复版本：Boss 血条随 Boss 出现即时显示，紧凑 HUD 拉开得分与状态条间距 |
 | v0.4.2 | 修复版本：战场上下铺满屏幕边缘，满屏时去掉外框，增强沉浸感 |
 | v0.4.1 | 重构版本：二级页面外壳、内容卡片、统计条、偏好读写与日期解析收敛到单一出处 |
 | v0.4.0 | 内容版本：每日挑战与五种战场修正、13 项成就与成就页 |
 | v0.3.2 | 性能版本：弹幕两趟收集、文字与颜色分档缓存、视口裁剪、结算停引擎 |
-| v0.3.1 | 重构版本：拾取规则、HUD 条目、扫掠判定、战场边界与说明文案收敛到单一出处 |
 
 | 更早版本 | 说明 |
 | --- | --- |
-| v0.3.0 及更早 | 僚机护航与幽影方舟 Boss、每日挑战前的完整战斗循环与三端发布 |
+| v0.3.1 及更早 | 重构与更早内容版本：拾取规则收敛、僚机护航与幽影方舟 Boss、完整战斗循环与三端发布 |
