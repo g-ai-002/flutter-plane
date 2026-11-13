@@ -114,7 +114,7 @@ void main() {
     expect(find.text('50%'), findsOneWidget);
   });
 
-  testWidgets('紧凑布局得分、状态条与 Boss 血条之间留出间距', (tester) async {
+  testWidgets('紧凑布局左侧竖排数量提示，Boss 血条缩小靠右', (tester) async {
     final controller = BattleController(size: const Size(400, 820))..wave = 4;
     controller.enemies.add(
       Enemy(
@@ -131,10 +131,97 @@ void main() {
     final score = tester.getRect(find.byKey(const ValueKey('hud-score')));
     final status = tester.getRect(find.byKey(const ValueKey('hud-status')));
     final boss = tester.getRect(find.byKey(const ValueKey('hud-boss')));
+    final lives = tester.getRect(find.byKey(const ValueKey('hud-stat-生命')));
+    final bombs = tester.getRect(find.byKey(const ValueKey('hud-stat-炸弹')));
 
+    // 得分在上、数量提示在下，二者留出间距。
     expect(status.top - score.bottom, greaterThanOrEqualTo(8));
-    expect(boss.top - status.bottom, greaterThanOrEqualTo(8));
-    expect(boss.bottom, lessThan(820));
+    // 生命与炸弹上下排列，且左边缘对齐。
+    expect(bombs.top, greaterThan(lives.bottom));
+    expect((lives.left - bombs.left).abs(), lessThan(1));
+    expect(status.height, greaterThan(status.width));
+    // 数量提示只占左侧窄条，不越过屏幕中线。
+    expect(status.left, lessThan(16));
+    expect(status.right, lessThan(400 / 2));
+    // 血条靠右、尺寸收小，不压在得分与数量提示上。
+    expect(boss.right, lessThanOrEqualTo(400 - 8));
+    expect(boss.left, greaterThan(400 / 2));
+    expect(boss.width, lessThan(400 * 0.4));
+    expect(boss.left, greaterThan(score.right));
+    expect(boss.left, greaterThan(status.right));
+  });
+
+  testWidgets('满状态与连击下左侧竖排仍不越过中线', (tester) async {
+    final controller = BattleController(size: const Size(320, 640))
+      ..wave = 4
+      ..combo = 30;
+    controller.player
+      ..wingmen = 2
+      ..rapid = 5;
+    addTearDown(controller.dispose);
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BattleHud(
+            controller: controller,
+            field: const Rect.fromLTWH(0, 0, 320, 640),
+            stage: const Size(320, 640),
+            onPause: () {},
+            onBomb: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final status = tester.getRect(find.byKey(const ValueKey('hud-status')));
+    final labels = ['生命', '炸弹', '火力', '僚机', '急速'];
+    final tops = [
+      for (final label in labels)
+        tester.getRect(find.byKey(ValueKey('hud-stat-$label'))).top,
+    ];
+
+    expect(status.right, lessThan(320 / 2));
+    for (var i = 1; i < tops.length; i++) {
+      expect(tops[i], greaterThan(tops[i - 1]));
+    }
+  });
+
+  testWidgets('宽屏 Boss 血条放在战场右侧留白', (tester) async {
+    final controller = BattleController(size: const Size(400, 820))..wave = 4;
+    controller.enemies.add(
+      Enemy(
+        kind: EnemyKind.boss,
+        pattern: EnemyPattern.hover,
+        x: 200,
+        y: 100,
+        difficulty: 1,
+      ),
+    );
+    addTearDown(controller.dispose);
+    await tester.binding.setSurfaceSize(const Size(1200, 860));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BattleHud(
+            controller: controller,
+            field: const Rect.fromLTWH(400, 0, 400, 820),
+            stage: const Size(1200, 860),
+            onPause: () {},
+            onBomb: () {},
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final boss = tester.getRect(find.byKey(const ValueKey('hud-boss')));
+    expect(boss.left, greaterThanOrEqualTo(800));
+    expect(boss.right, lessThanOrEqualTo(1200));
+    expect(boss.width, lessThanOrEqualTo(190));
   });
 
   testWidgets('窄屏顶部 HUD 在满状态与连击下不溢出', (tester) async {
