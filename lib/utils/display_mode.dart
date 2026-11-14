@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// 竖版弹幕射击需要尽可能高的画面，手机与折叠屏折叠态进入战斗时隐藏系统栏。
 ///

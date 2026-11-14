@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// 统一的内容卡片外观：主题表面色、细描边与圆角。
 ///

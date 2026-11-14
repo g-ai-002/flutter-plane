@@ -54,7 +54,7 @@
 
 ## 技术栈
 
-- Flutter 3.47.9 + Flame 1.38.2
+- Flutter 3.50.0 + Flame 1.38.2
 - 状态：Provider；本地存储：shared_preferences
 - 音频：flutter_soloud（播放运行时合成的 WAV）
 - 桌面窗口：window_manager；Web 中文字体：soup_fonts

@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sky_fighter/pages/widgets/stat_text.dart';
 import 'package:sky_fighter/pages/widgets/surface_panel.dart';
 

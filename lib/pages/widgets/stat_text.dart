@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// 数值与标签的统计文本，首页卡片、设置页与结算遮罩共用同一套排版。
 ///

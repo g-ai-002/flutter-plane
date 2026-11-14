@@ -1,8 +1,8 @@
 import 'dart:async';
 
 import 'package:flame/game.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:provider/provider.dart';
 
 import '../flame/sky_fighter_game.dart';

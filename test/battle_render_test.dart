@@ -1,6 +1,6 @@
 import 'package:flame/game.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:material_ui/material_ui.dart';
 import 'package:sky_fighter/flame/sky_fighter_game.dart';
 import 'package:sky_fighter/game/battle/battle_controller.dart';
 import 'package:sky_fighter/game/battle/battle_types.dart';
