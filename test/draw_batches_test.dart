@@ -141,6 +141,63 @@ void main() {
     });
   });
 
+  group('固定样式槽位', () {
+    test('槽位与逐点写入合并到同一桶', () {
+      final batch = DotBatch();
+      final canvas = RecordingCanvas();
+
+      final slot = batch.slot(0xFFFFD54F, 3, 1);
+      slot.add(10, 20);
+      slot.add(30, 40);
+      batch.add(0xFFFFD54F, 50, 60, 3, 1);
+      batch.flush(canvas);
+
+      expect(canvas.calls, hasLength(1));
+      expect(canvas.calls.single.pointCount, 3);
+      expect(canvas.calls.single.points, [10, 20, 30, 40, 50, 60]);
+    });
+
+    test('胶囊槽位按中心点补出上下两端', () {
+      final batch = CapsuleBatch();
+      final canvas = RecordingCanvas();
+
+      final slot = batch.slot(0xFFB7F4FF, 4, 6, 1);
+      slot.add(50, 100);
+      slot.add(70, 200);
+      batch.flush(canvas);
+
+      final call = canvas.calls.single;
+      expect(call.points, [50, 96, 50, 104, 70, 196, 70, 204]);
+      expect(call.strokeWidth, 6);
+      expect(call.strokeCap, StrokeCap.round);
+    });
+
+    test('完全透明的样式与逐点写入一样不进入绘制', () {
+      final batch = DotBatch();
+      final canvas = RecordingCanvas();
+
+      batch.slot(0xFFFFFFFF, 3, 0.01).add(10, 20);
+      batch.flush(canvas);
+
+      expect(canvas.calls, isEmpty);
+    });
+
+    test('槽位绘制后同样清空坐标，下一帧可继续复用', () {
+      final batch = DotBatch();
+      final canvas = RecordingCanvas();
+
+      final slot = batch.slot(0xFFFFD54F, 2, 1);
+      slot.add(10, 20);
+      batch.flush(canvas);
+      batch.flush(canvas);
+      expect(canvas.calls, hasLength(1));
+
+      slot.add(30, 40);
+      batch.flush(canvas);
+      expect(canvas.calls.last.points, [30, 40]);
+    });
+  });
+
   group('胶囊批绘制', () {
     test('同一胶囊的两端成对写入，圆头线段等价于子弹外形', () {
       final batch = CapsuleBatch();

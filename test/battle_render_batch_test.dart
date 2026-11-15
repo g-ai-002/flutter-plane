@@ -126,6 +126,30 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('敌弹样式按弹种缓存，逐帧不再重复解析配色与粗细', (tester) async {
+    final controller = _controllerWithBullets();
+    addTearDown(controller.dispose);
+
+    final component = BattleFieldComponent(
+      controller: controller,
+      logicRate: LogicRate.hz60,
+    );
+    component.size = Vector2(400, 700);
+    addTearDown(component.onRemove);
+    final canvas = CountingCanvas();
+
+    component.render(canvas);
+    final styles = component.cachedEnemyStyles;
+    // 测试场景用到 3 种敌弹（瞄准 / 散射 / Boss），同种弹只解析一次。
+    expect(styles, 3);
+
+    for (var i = 0; i < 6; i++) {
+      component.render(canvas);
+    }
+    expect(component.cachedEnemyStyles, styles);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('战场背景只录制一次，后续帧复用同一张 Picture', (tester) async {
     final controller = BattleController(size: const Size(400, 700), seed: 5)
       ..start();

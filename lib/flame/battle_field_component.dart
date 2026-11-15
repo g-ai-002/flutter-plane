@@ -20,7 +20,11 @@ class BattleFieldComponent extends PositionComponent {
     required this.logicRate,
     this.fontFamily,
   }) : _clock = FixedStepClock(logicRate.step),
-       super(priority: 1);
+       super(priority: 1) {
+    _playerBulletGlow = _dots.slot(_playerBulletGlowArgb, 8, 0.28);
+    _playerBulletBody = _capsules.slot(_playerBulletBodyArgb, 4, 6, 1);
+    _playerBulletCore = _capsules.slot(_whiteArgb, 2.9, 2.2, 1);
+  }
 
   final BattleController controller;
   final LogicRate logicRate;
@@ -34,6 +38,13 @@ class BattleFieldComponent extends PositionComponent {
   final DotBatch _dotsUnder = DotBatch();
   final CapsuleBatch _capsules = CapsuleBatch();
   final SegmentBatch _segments = SegmentBatch();
+
+  /// 玩家弹与敌弹的配色、透明度与粗细由弹种决定，逐帧颜色查表与
+  /// 透明度量化没有必要；这里预解析成固定槽位，密集弹幕只写坐标。
+  late final BatchSlot _playerBulletGlow;
+  late final CapsuleSlot _playerBulletBody;
+  late final CapsuleSlot _playerBulletCore;
+  final Map<int, _EnemyBulletStyle> _enemyBulletStyles = {};
 
   /// 文本缓存分两层：先按文本取样式表，再用整型样式键取排版结果。
   /// 热路径上不再拼接 `文本|字号|颜色|字重` 字符串，飘字与补给标签
@@ -283,8 +294,7 @@ class BattleFieldComponent extends PositionComponent {
 
     // 尾焰：按正弦闪烁幅度取用预建路径，不再逐帧构造 Path。
     final flicker = 10 + math.sin(controller.elapsed * 42) * 4;
-    final flame =
-        _playerFlames[((flicker - 6) / 8 * 7).round().clamp(0, 7)];
+    final flame = _playerFlames[((flicker - 6) / 8 * 7).round().clamp(0, 7)];
     _fill.color = const Color(0xBB2B6BFF);
     canvas.drawPath(flame, _fill);
     _fill.color = const Color(0xE67FD8FF);
@@ -420,9 +430,9 @@ class BattleFieldComponent extends PositionComponent {
     // 玩家弹：辉光、弹体与弹芯一次遍历收集完再统一提交，
     // 每颗子弹只走一遍列表，不再分三趟读写批绘制缓冲。
     for (final bullet in controller.playerBullets) {
-      _dots.add(_playerBulletGlowArgb, bullet.x, bullet.y, 8, 0.28);
-      _capsules.add(_playerBulletBodyArgb, bullet.x, bullet.y, 4, 6, 1);
-      _capsules.add(_whiteArgb, bullet.x, bullet.y, 2.9, 2.2, 1);
+      _playerBulletGlow.add(bullet.x, bullet.y);
+      _playerBulletBody.add(bullet.x, bullet.y);
+      _playerBulletCore.add(bullet.x, bullet.y);
     }
     _dots.flush(canvas);
     _capsules.flush(canvas);
@@ -430,14 +440,28 @@ class BattleFieldComponent extends PositionComponent {
     // 敌弹：辉光写入下层桶，弹体与弹芯写入上层桶，一次遍历完成收集。
     // 两个桶分别提交，保持「全部辉光在下、弹芯在上」的既有层级。
     for (final bullet in controller.enemyBullets) {
-      final argb = enemyBulletArgb(bullet.kind);
-      _dotsUnder.add(argb, bullet.x, bullet.y, bullet.radius * 2.4, 0.26);
-      _dots.add(argb, bullet.x, bullet.y, bullet.radius, 1);
-      _dots.add(_whiteArgb, bullet.x, bullet.y, bullet.radius * 0.42, 0.85);
+      final style = _enemyStyle(bullet);
+      style.glow.add(bullet.x, bullet.y);
+      style.body.add(bullet.x, bullet.y);
+      style.core.add(bullet.x, bullet.y);
     }
     _dotsUnder.flush(canvas);
     _dots.flush(canvas);
   }
+
+  /// 敌弹样式按「弹种 + 半径」缓存：同屏通常只有四五种，
+  /// 缓存后每颗子弹只剩一次查表与三次坐标写入。
+  _EnemyBulletStyle _enemyStyle(Bullet bullet) =>
+      _enemyBulletStyles[bullet.kind * 1000 +
+          (bullet.radius * 10).round()] ??= _EnemyBulletStyle(
+        glow: _dotsUnder.slot(
+          enemyBulletArgb(bullet.kind),
+          bullet.radius * 2.4,
+          0.26,
+        ),
+        body: _dots.slot(enemyBulletArgb(bullet.kind), bullet.radius, 1),
+        core: _dots.slot(_whiteArgb, bullet.radius * 0.42, 0.85),
+      );
 
   // ------------------------------------------------------------ 补给
 
@@ -615,4 +639,20 @@ class BattleFieldComponent extends PositionComponent {
 
   /// 已缓存的颜色数量，供测试确认量化后不再逐帧增长。
   int get cachedColors => _colorCache.length;
+
+  /// 已缓存的敌弹样式数量，供测试确认按弹种复用而不是逐颗解析。
+  int get cachedEnemyStyles => _enemyBulletStyles.length;
+}
+
+/// 单一敌弹样式的三个固定槽位：辉光在下层，弹体与弹芯在上层。
+class _EnemyBulletStyle {
+  const _EnemyBulletStyle({
+    required this.glow,
+    required this.body,
+    required this.core,
+  });
+
+  final BatchSlot glow;
+  final BatchSlot body;
+  final BatchSlot core;
 }

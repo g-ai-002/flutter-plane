@@ -30,20 +30,29 @@ class DrawBatch {
   ///
   /// [argb] 的高 8 位是原始透明度，[alpha] 再叠加一层衰减系数。
   void add(int argb, double x, double y, double alpha, double width) {
-    if (alpha <= 0.02 || width <= 0.2) return;
+    _bucketFor(argb, alpha, width)?.add(x, y);
+  }
+
+  /// 预解析固定样式的桶位：弹幕同屏数百颗、每颗要写两三个点时，
+  /// 逐点量化颜色、算键与查表是热路径上的主要开销；样式固定的绘制
+  /// 先用 [slot] 解析一次，之后每颗子弹只写坐标。
+  BatchSlot slot(int argb, double alpha, double width) =>
+      BatchSlot._(_bucketFor(argb, alpha, width));
+
+  _Bucket? _bucketFor(int argb, double alpha, double width) {
+    if (alpha <= 0.02 || width <= 0.2) return null;
     final level = ((alpha > 1 ? 1 : alpha) * _alphaLevels).round();
-    if (level <= 0) return;
+    if (level <= 0) return null;
     final steps = level > _alphaLevels ? _alphaLevels : level;
     final sourceAlpha = (argb >> 24) & 0xFF;
     final alphaByte = sourceAlpha * steps ~/ _alphaLevels;
-    if (alphaByte <= 0) return;
+    if (alphaByte <= 0) return null;
     final color = (argb & 0x00FFFFFF) | (alphaByte << 24);
     final widthKey = (width * _widthScale).round().clamp(1, _widthKeys);
-    final bucket = _buckets[color * 257 + widthKey] ??= _Bucket(
+    return _buckets[color * 257 + widthKey] ??= _Bucket(
       Color(color),
       widthKey / _widthScale,
     );
-    bucket.add(x, y);
   }
 
   /// 绘制本批已收集的点，并清空各桶坐标，桶本身保留给下一帧复用。
@@ -67,7 +76,20 @@ class DotBatch {
   void add(int argb, double x, double y, double radius, double alpha) =>
       _batch.add(argb, x, y, alpha, radius * 2);
 
+  /// 半径与透明度固定的圆点槽位，弹幕等高频样式不再重复量化。
+  BatchSlot slot(int argb, double radius, double alpha) =>
+      _batch.slot(argb, alpha, radius * 2);
+
   void flush(Canvas canvas) => _batch.flush(canvas);
+}
+
+/// 圆点槽位：颜色、透明度与半径已解析，循环里只传坐标。
+class BatchSlot {
+  BatchSlot._(this._bucket);
+
+  final _Bucket? _bucket;
+
+  void add(double x, double y) => _bucket?.add(x, y);
 }
 
 /// 竖直线段批绘制：圆头线段等价于胶囊，用来替代逐颗旋转的 RRect。
@@ -86,7 +108,24 @@ class CapsuleBatch {
     _batch.add(argb, x, centerY + halfLength, alpha, width);
   }
 
+  /// 固定样式与长度的胶囊槽位：写入时只给中心点，上下两端自动成对补出。
+  CapsuleSlot slot(int argb, double halfLength, double width, double alpha) =>
+      CapsuleSlot._(_batch.slot(argb, alpha, width), halfLength);
+
   void flush(Canvas canvas) => _batch.flush(canvas);
+}
+
+/// 胶囊槽位：线宽、透明度与半长已解析，循环里只传中心点。
+class CapsuleSlot {
+  CapsuleSlot._(this._slot, this._halfLength);
+
+  final BatchSlot _slot;
+  final double _halfLength;
+
+  void add(double x, double centerY) {
+    _slot.add(x, centerY - _halfLength);
+    _slot.add(x, centerY + _halfLength);
+  }
 }
 
 /// 任意方向线段批绘制：爆炸碎片用它替代逐颗 save / rotate / drawRect。
