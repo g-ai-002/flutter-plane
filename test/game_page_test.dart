@@ -6,15 +6,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sky_fighter/flame/sky_fighter_game.dart';
 import 'package:sky_fighter/game/battle/battle_types.dart';
 import 'package:sky_fighter/pages/game_page.dart';
+import 'package:sky_fighter/pages/widgets/space_backdrop.dart';
 import 'package:sky_fighter/providers/settings_provider.dart';
 import 'package:sky_fighter/services/storage_service.dart';
 
-Future<SettingsProvider> pumpGame(WidgetTester tester) async {
+Future<SettingsProvider> pumpGame(
+  WidgetTester tester, {
+  Size size = const Size(400, 820),
+}) async {
   SharedPreferences.setMockInitialValues({});
   StorageService.resetForTests();
   final storage = await StorageService.instance;
   final settings = SettingsProvider(storage);
-  await tester.binding.setSurfaceSize(const Size(400, 820));
+  await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     ChangeNotifierProvider<SettingsProvider>.value(
@@ -48,6 +52,20 @@ void main() {
 
     final game = tester.widget<GameWidget<SkyFighterGame>>(field).game!;
     expect(game.controller.size.height, closeTo(kWorldWidth * 820 / 400, 1e-6));
+  });
+
+  testWidgets('战场铺满时不再叠加背景层', (tester) async {
+    await pumpGame(tester);
+
+    // 满屏战场的底色不透明，背景层完全看不见，直接不挂。
+    expect(find.byType(SpaceBackdrop), findsNothing);
+  });
+
+  testWidgets('宽屏两侧留白仍绘制背景层', (tester) async {
+    await pumpGame(tester, size: const Size(1280, 800));
+
+    expect(find.byType(SpaceBackdrop), findsOneWidget);
+    expect(find.byType(GameWidget<SkyFighterGame>), findsOneWidget);
   });
 
   testWidgets('暂停与继续战斗', (tester) async {

@@ -270,6 +270,9 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
               _ensureGame(BattleViewport.worldSize(field.size));
               final controller = _controller!;
               final game = _game!;
+              // 战场铺满整屏时背景层完全被盖住：不再挂背景，省掉一整层
+              // 全屏合成与一次星空绘制；宽屏两侧留白仍需要背景衬托。
+              final fillsStage = BattleViewport.fillsStage(field, stage);
               final playfield = Listener(
                 behavior: HitTestBehavior.opaque,
                 onPointerDown: _onPointerDown,
@@ -282,11 +285,12 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
               return Stack(
                 fit: StackFit.expand,
                 children: [
-                  const SpaceBackdrop(brightness: Brightness.dark),
+                  if (!fillsStage)
+                    const SpaceBackdrop(brightness: Brightness.dark),
                   Positioned.fromRect(
                     rect: field,
                     // 满屏时战场直接铺到屏幕边缘，不再加描边与圆角外框。
-                    child: BattleViewport.fillsStage(field, stage)
+                    child: fillsStage
                         ? playfield
                         : _PlayfieldFrame(child: playfield),
                   ),
