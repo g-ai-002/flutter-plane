@@ -110,10 +110,17 @@ class _BackdropPainter extends CustomPainter {
 }
 
 /// 首页战机徽标：同心轨道缓慢旋转，尾焰呼吸，纯矢量绘制。
+///
+/// 徽标在首页常驻 60fps 旋转，绘制隔离在独立的 [RepaintBoundary] 里，
+/// 只重绘 196/340px 的徽标区域，不再带着整页文字与卡片一起重绘。
 class PlaneEmblem extends StatefulWidget {
   const PlaneEmblem({super.key, required this.size});
 
   final double size;
+
+  /// 已构建的绘制资源份数，供测试确认动画帧复用同一份渐变与画笔。
+  @visibleForTesting
+  static int assetBuilds = 0;
 
   @override
   State<PlaneEmblem> createState() => _PlaneEmblemState();
@@ -126,6 +133,20 @@ class _PlaneEmblemState extends State<PlaneEmblem>
     duration: const Duration(seconds: 16),
   )..repeat();
 
+  late _EmblemAssets _assets;
+
+  @override
+  void initState() {
+    super.initState();
+    _assets = _EmblemAssets(widget.size);
+  }
+
+  @override
+  void didUpdateWidget(PlaneEmblem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.size != oldWidget.size) _assets = _EmblemAssets(widget.size);
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -134,24 +155,113 @@ class _PlaneEmblemState extends State<PlaneEmblem>
 
   @override
   Widget build(BuildContext context) {
+    final assets = _assets;
     return SizedBox(
       width: widget.size,
       height: widget.size,
-      child: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) => CustomPaint(
-          painter: _EmblemPainter(progress: _controller.value),
-          size: Size.square(widget.size),
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, _) => CustomPaint(
+            painter: _EmblemPainter(
+              progress: _controller.value,
+              assets: assets,
+            ),
+            size: Size.square(widget.size),
+          ),
         ),
       ),
     );
   }
 }
 
+/// 徽标绘制资源：渐变着色器与画笔按尺寸构建一次。
+///
+/// 旋转动画每帧只改变角度与坐标，颜色、描边与渐变保持不变；逐帧新建
+/// Paint / Shader 只会给光栅线程制造垃圾，所以随尺寸变化的着色器与
+/// 固定画笔都缓存在这里。
+class _EmblemAssets {
+  _EmblemAssets(double size) {
+    PlaneEmblem.assetBuilds++;
+    final center = Offset(size / 2, size / 2);
+    final radius = size / 2;
+
+    glow = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          appCyan.withValues(alpha: 0.28),
+          appCyan.withValues(alpha: 0.06),
+          appCyan.withValues(alpha: 0),
+        ],
+        stops: const [0, 0.55, 1],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+    ring = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..color = appCyan.withValues(alpha: 0.2);
+    ringFaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..color = appCyan.withValues(alpha: 0.12);
+    dash = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..color = appCyan.withValues(alpha: 0.55);
+    amber = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..color = appAmber.withValues(alpha: 0.5);
+    flame = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFFFFD54F), Color(0x00FF8A5C)],
+      ).createShader(const Rect.fromLTWH(-6, 13, 12, 20));
+    hullFill = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF9BE8FF), Color(0xFF2B6BFF)],
+      ).createShader(const Rect.fromLTWH(-14, -17, 28, 29));
+    hullStroke = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8
+      ..color = const Color(0xFFDDF7FF);
+    cockpit = Paint()..color = Colors.white;
+    spark = Paint()..color = appAmber.withValues(alpha: 0.8);
+  }
+
+  late final Paint glow;
+  late final Paint ring;
+  late final Paint ringFaint;
+  late final Paint dash;
+  late final Paint amber;
+  late final Paint flame;
+  late final Paint hullFill;
+  late final Paint hullStroke;
+  late final Paint cockpit;
+  late final Paint spark;
+}
+
+/// 尾焰按闪烁幅度预建 8 条路径，旋转帧不再逐帧构造 Path。
+///
+/// 闪烁系数 `0.86 + 0.14 * sin` 的取值区间是 0.72–1.0，这里按同一区间
+/// 离散成 8 档，长度变化与逐帧构造路径一致。
+final List<Path> _emblemFlames = [
+  for (var i = 0; i < 8; i++)
+    Path()
+      ..moveTo(-6, 13)
+      ..lineTo(0, 13 + 16 * (0.72 + 0.28 * i / 7))
+      ..lineTo(6, 13)
+      ..close(),
+];
+
 class _EmblemPainter extends CustomPainter {
-  const _EmblemPainter({required this.progress});
+  const _EmblemPainter({required this.progress, required this.assets});
 
   final double progress;
+  final _EmblemAssets assets;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -165,32 +275,13 @@ class _EmblemPainter extends CustomPainter {
   }
 
   void _paintGlow(Canvas canvas, Offset center, double radius) {
-    final glow = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          appCyan.withValues(alpha: 0.28),
-          appCyan.withValues(alpha: 0.06),
-          appCyan.withValues(alpha: 0),
-        ],
-        stops: const [0, 0.55, 1],
-      ).createShader(Rect.fromCircle(center: center, radius: radius));
-    canvas.drawCircle(center, radius, glow);
+    canvas.drawCircle(center, radius, assets.glow);
   }
 
   void _paintOrbits(Canvas canvas, Offset center, double radius) {
-    final ring = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.1
-      ..color = appCyan.withValues(alpha: 0.2);
-    canvas.drawCircle(center, radius * 0.72, ring);
-    ring.color = appCyan.withValues(alpha: 0.12);
-    canvas.drawCircle(center, radius * 0.88, ring);
+    canvas.drawCircle(center, radius * 0.72, assets.ring);
+    canvas.drawCircle(center, radius * 0.88, assets.ringFaint);
 
-    final dash = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2
-      ..strokeCap = StrokeCap.round
-      ..color = appCyan.withValues(alpha: 0.55);
     const segments = 18;
     for (var i = 0; i < segments; i += 2) {
       final start = progress * math.pi * 2 + i * math.pi * 2 / segments;
@@ -199,28 +290,24 @@ class _EmblemPainter extends CustomPainter {
         start,
         math.pi * 2 / segments * 0.7,
         false,
-        dash,
+        assets.dash,
       );
     }
 
-    final amber = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
-      ..color = appAmber.withValues(alpha: 0.5);
     final start = -progress * math.pi * 2 * 1.4;
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius * 0.62),
       start,
       math.pi * 0.34,
       false,
-      amber,
+      assets.amber,
     );
     canvas.drawArc(
       Rect.fromCircle(center: center, radius: radius * 0.62),
       start + math.pi,
       math.pi * 0.22,
       false,
-      amber,
+      assets.amber,
     );
   }
 
@@ -231,61 +318,35 @@ class _EmblemPainter extends CustomPainter {
     canvas.rotate(-0.18);
     canvas.scale(scale * 2.4);
 
-    // 尾焰
     final flicker = 0.86 + 0.14 * math.sin(progress * math.pi * 2 * 6);
-    final flame = Path()
-      ..moveTo(-6, 13)
-      ..lineTo(0, 13 + 16 * flicker)
-      ..lineTo(6, 13)
-      ..close();
-    canvas.drawPath(
-      flame,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFFFFD54F), Color(0x00FF8A5C)],
-        ).createShader(const Rect.fromLTWH(-6, 13, 12, 20)),
-    );
+    final flame =
+        _emblemFlames[((flicker - 0.72) / 0.28 * 7).round().clamp(0, 7)];
+    canvas.drawPath(flame, assets.flame);
 
     final body = playerHullPath;
-    canvas.drawPath(
-      body,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF9BE8FF), Color(0xFF2B6BFF)],
-        ).createShader(const Rect.fromLTWH(-14, -17, 28, 29)),
-    );
-    canvas.drawPath(
-      body,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 0.8
-        ..color = const Color(0xFFDDF7FF),
-    );
+    canvas.drawPath(body, assets.hullFill);
+    canvas.drawPath(body, assets.hullStroke);
     canvas.drawOval(
       Rect.fromCenter(center: const Offset(0, -5), width: 3.4, height: 8),
-      Paint()..color = Colors.white,
+      assets.cockpit,
     );
     canvas.restore();
   }
 
   void _paintSparks(Canvas canvas, Offset center, double radius) {
-    final spark = Paint()..color = appAmber.withValues(alpha: 0.8);
     for (var i = 0; i < 5; i++) {
       final angle = progress * math.pi * 2 + i * math.pi * 2 / 5;
       final distance = radius * (0.62 + 0.04 * math.sin(i + progress * 12));
       canvas.drawCircle(
         center + Offset(math.cos(angle), math.sin(angle)) * distance,
         1.6,
-        spark,
+        assets.spark,
       );
     }
   }
 
   @override
   bool shouldRepaint(covariant _EmblemPainter oldDelegate) =>
-      oldDelegate.progress != progress;
+      oldDelegate.progress != progress ||
+      !identical(oldDelegate.assets, assets);
 }

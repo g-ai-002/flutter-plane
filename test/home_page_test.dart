@@ -129,4 +129,47 @@ void main() {
     );
     expect(button.width, greaterThan(300));
   });
+
+  testWidgets('手机尺寸下背景铺满全屏且内容垂直居中', (tester) async {
+    const size = Size(390, 844);
+    await pumpHome(tester, size: size);
+
+    // 背景不受 SafeArea 约束，直接铺到屏幕四边，保持沉浸感。
+    expect(
+      tester.getRect(find.byType(SpaceBackdrop)),
+      const Rect.fromLTWH(0, 0, 390, 844),
+    );
+
+    final top = tester.getTopLeft(find.byIcon(Icons.rocket_launch_rounded)).dy;
+    final bottom = tester
+        .getBottomLeft(find.textContaining('v${AppConstants.version}'))
+        .dy;
+    expect(bottom, lessThanOrEqualTo(size.height));
+    expect((top - (size.height - bottom)).abs(), lessThan(40));
+  });
+
+  testWidgets('首页徽标旋转只重绘自身图层，绘制资源只构建一次', (tester) async {
+    PlaneEmblem.assetBuilds = 0;
+    await pumpHome(tester);
+
+    final emblem = find.byType(PlaneEmblem);
+    final customPaint = find.descendant(
+      of: emblem,
+      matching: find.byType(CustomPaint),
+    );
+    expect(customPaint, findsOneWidget);
+    // 徽标动画被 RepaintBoundary 包住，旋转不会带动整页重绘。
+    expect(
+      find.ancestor(of: customPaint, matching: find.byType(RepaintBoundary)),
+      findsWidgets,
+    );
+    expect(PlaneEmblem.assetBuilds, 1);
+
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    // 连续动画帧复用同一份渐变与画笔，不再逐帧新建。
+    expect(PlaneEmblem.assetBuilds, 1);
+    expect(tester.takeException(), isNull);
+  });
 }
