@@ -108,4 +108,25 @@ void main() {
     expect(find.byType(PlaneEmblem), findsOneWidget);
     expect(find.text('开始战斗'), findsOneWidget);
   });
+
+  testWidgets('竖屏首页内容垂直居中并铺满可用宽度', (tester) async {
+    const height = 900.0;
+    await pumpHome(tester, size: const Size(400, height));
+
+    final top = tester.getTopLeft(find.byIcon(Icons.rocket_launch_rounded)).dy;
+    final bottom = tester
+        .getBottomLeft(find.textContaining('v${AppConstants.version}'))
+        .dy;
+    // 上下留白接近相等，说明内容块在可视区域内居中而不是贴着顶部。
+    expect((top - (height - bottom)).abs(), lessThan(40));
+
+    // 按钮铺满扣除内边距后的宽度，窄屏没有多余的横向留白。
+    final button = tester.getRect(
+      find.ancestor(
+        of: find.text('开始战斗'),
+        matching: find.byType(InkWell),
+      ),
+    );
+    expect(button.width, greaterThan(300));
+  });
 }

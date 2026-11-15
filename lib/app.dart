@@ -11,6 +11,7 @@ import 'services/storage_service.dart';
 import 'theme/app_theme.dart';
 import 'utils/app_font.dart';
 import 'utils/constants.dart';
+import 'utils/display_mode.dart';
 import 'utils/system_ui.dart';
 
 class SkyFighterApp extends StatefulWidget {
@@ -74,12 +75,16 @@ class _SkyFighterAppState extends State<SkyFighterApp>
             locale: const Locale('zh', 'CN'),
             // Web 首次点击用于解除浏览器的自动播放限制。
             builder: (context, child) => SystemUiOverlay(
-              child: Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: kIsWeb
-                    ? (_) => MusicService.retryOnInteraction()
-                    : null,
-                child: child ?? const SizedBox.shrink(),
+              // 沉浸式全屏放在应用外壳：启动首页与战斗页共享同一份系统栏状态，
+              // 页面之间切换不会闪回系统栏。
+              child: ImmersiveFullscreen(
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: kIsWeb
+                      ? (_) => MusicService.retryOnInteraction()
+                      : null,
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             ),
             home: const HomePage(),
