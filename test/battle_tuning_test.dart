@@ -69,6 +69,29 @@ void main() {
     });
   });
 
+  group('掉落软保底', () {
+    test('刚掉落过时使用基础掉率', () {
+      expect(dropChanceWithLuck(0.04, 0), 0.04);
+      expect(dropChanceWithLuck(0.3, 0), 0.3);
+    });
+
+    test('连续未掉落时掉率逐架提升', () {
+      final fresh = dropChanceWithLuck(0.04, 0);
+      final dry = dropChanceWithLuck(0.04, 5);
+      final drier = dropChanceWithLuck(0.04, 10);
+      expect(dry, greaterThan(fresh));
+      expect(drier, greaterThan(dry));
+      expect(dry, closeTo(0.04 * (1 + kDropLuckStepPerKill * 5), 1e-9));
+    });
+
+    test('提升幅度封顶且掉率不超过 100%', () {
+      final capped = dropChanceWithLuck(0.04, 999);
+      expect(capped, closeTo(0.04 * kDropLuckMaxScale, 1e-9));
+      expect(dropChanceWithLuck(0.6, 999), 1);
+      expect(dropChanceWithLuck(0.04, -3), 0.04);
+    });
+  });
+
   group('边界与节奏', () {
     test('玩家边界与出生位置自洽', () {
       expect(kPlayerSideMargin, greaterThan(0));

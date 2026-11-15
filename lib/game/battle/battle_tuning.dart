@@ -114,6 +114,26 @@ int comboMultiplier(int combo) {
 /// 连续多少架未掉落补给后强制掉落一次。
 const int kDropPityLimit = 20;
 
+/// 软保底：连续未掉落时，每多击破一架提升的掉率比例。
+///
+/// 侦察机一类的基础掉率只有 4%，单波击破数又常在十架上下，纯随机很容易
+/// 连续几波颗粒无收；软保底让干涸越久掉率越高，各端的补给节奏因此稳定。
+const double kDropLuckStepPerKill = 0.12;
+
+/// 软保底提升掉率的倍数上限。
+const double kDropLuckMaxScale = 2.5;
+
+/// 结合「距上次掉落击破了几架」的实际掉率，范围 0–1。
+///
+/// 与帧率、平台无关：同一串击破序列在任何刷新率下都得到同一组掉率。
+double dropChanceWithLuck(double base, int killsSinceDrop) {
+  final scale = (1 + kDropLuckStepPerKill * killsSinceDrop).clamp(
+    1.0,
+    kDropLuckMaxScale,
+  );
+  return (base * scale).clamp(0.0, 1.0);
+}
+
 /// 掉落随机数对应的补给类型，概率顺序与玩法说明一致。
 PowerUpKind powerUpKindForRoll(double roll) {
   if (roll < 0.36) return PowerUpKind.weapon;

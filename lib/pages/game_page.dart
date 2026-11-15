@@ -126,7 +126,8 @@ class _GamePageState extends State<GamePage> with WidgetsBindingObserver {
     if (controller == null) return;
     LogService.info(
       '战斗结束: 得分 ${controller.score}, 波次 ${controller.wave}, '
-      '击破 ${controller.kills}, 存活 ${controller.survived.inSeconds}s',
+      '击破 ${controller.kills}, 掉落 ${controller.drops} 件, '
+      '存活 ${controller.survived.inSeconds}s',
     );
     // 留出坠机爆炸的演出时间再弹出结算。
     await Future<void>.delayed(const Duration(milliseconds: 1100));

@@ -29,6 +29,12 @@ void main() {
       expect(hints, contains('$kComboWindow 秒'));
     });
 
+    test('掉落说明使用统一的保底架数', () {
+      final hint = dropHint();
+      expect(hint, contains('$kDropPityLimit 架'));
+      expect(hint, contains('掉率'));
+    });
+
     test('目标说明使用统一的 Boss 波间隔', () {
       final hints = battleGoalHints().join('\n');
       expect(hints, contains('每 $kBossWaveInterval 波'));

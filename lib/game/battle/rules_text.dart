@@ -32,6 +32,10 @@ List<String> comboHints() => [
   '停火超过 $kComboWindow 秒连击归零，倍率最高 ×4。',
 ];
 
+/// 掉落说明：软保底的具体数值同样取自调参表。
+String dropHint() =>
+    '连续击破未掉落时掉率逐架提升，$kDropPityLimit 架内必定掉落一次补给。';
+
 /// 每日挑战说明。
 List<String> dailyChallengeHints() => [
   '每天刷新固定种子与战场修正，独立计分并记录今日最佳与连续天数。',

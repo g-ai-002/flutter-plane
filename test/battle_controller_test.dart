@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:sky_fighter/game/battle/battle_controller.dart';
+import 'package:sky_fighter/game/battle/battle_tuning.dart';
 import 'package:sky_fighter/game/battle/battle_types.dart';
 import 'package:sky_fighter/game/battle/wave_director.dart';
 
@@ -25,6 +26,31 @@ void advance(
     controller.update(dt);
     remaining -= dt;
   }
+}
+
+/// 在固定位置击破一架侦察机：位置与伤害都固定，掉落结果只由随机源决定。
+void killScout(BattleController controller, {double step = 1 / 60}) {
+  controller.enemies.add(
+    Enemy(
+      kind: EnemyKind.scout,
+      pattern: EnemyPattern.straight,
+      x: 200,
+      y: 300,
+      difficulty: 1,
+    ),
+  );
+  controller.playerBullets.add(
+    Bullet(
+      x: 200,
+      y: 308,
+      vx: 0,
+      vy: -560,
+      radius: 3.4,
+      damage: 10,
+      fromPlayer: true,
+    ),
+  );
+  controller.update(step);
 }
 
 void main() {
@@ -727,6 +753,81 @@ void main() {
       advance(controller, 0.2);
       expect(notifications, greaterThanOrEqualTo(1));
       expect(notifications, lessThanOrEqualTo(3));
+    });
+  });
+
+  group('补给掉落', () {
+    test('特效消耗的随机数不再影响掉落判定', () {
+      final plain = buildController();
+      final noisy = buildController();
+      addTearDown(plain.dispose);
+      addTearDown(noisy.dispose);
+
+      // 先制造一批敌弹再放炸弹：大量粒子被生成，特效随机流被打乱。
+      for (var i = 0; i < 12; i++) {
+        noisy.enemyBullets.add(
+          Bullet(
+            x: 40.0 + i * 24,
+            y: 200,
+            vx: 0,
+            vy: 120,
+            radius: 4,
+            damage: 1,
+            fromPlayer: false,
+          ),
+        );
+      }
+      noisy.useBomb();
+
+      for (var i = 0; i < 24; i++) {
+        killScout(plain);
+        killScout(noisy);
+      }
+
+      expect(noisy.kills, plain.kills);
+      expect(noisy.drops, plain.drops);
+      expect(
+        noisy.powerUps.map((item) => item.kind).toList(),
+        plain.powerUps.map((item) => item.kind).toList(),
+      );
+      expect(plain.drops, greaterThan(0));
+    });
+
+    test('不同逻辑步长得到同一串掉落结果', () {
+      final slow = buildController();
+      final fast = buildController();
+      addTearDown(slow.dispose);
+      addTearDown(fast.dispose);
+
+      for (var i = 0; i < 30; i++) {
+        killScout(slow, step: 1 / 30);
+        killScout(fast, step: 1 / 120);
+      }
+
+      expect(slow.kills, fast.kills);
+      expect(slow.drops, fast.drops);
+      expect(
+        slow.powerUps.map((item) => item.kind).toList(),
+        fast.powerUps.map((item) => item.kind).toList(),
+      );
+    });
+
+    test('连续未掉落不超过保底架数', () {
+      for (final seed in [1, 7, 42, 2026]) {
+        final controller = BattleController(
+          size: const Size(400, 700),
+          seed: seed,
+        )..start();
+        addTearDown(controller.dispose);
+
+        var kills = 0;
+        while (controller.drops == 0) {
+          killScout(controller);
+          kills++;
+          expect(kills, lessThanOrEqualTo(kDropPityLimit));
+        }
+        expect(controller.drops, 1);
+      }
     });
   });
 }

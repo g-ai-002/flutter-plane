@@ -65,7 +65,7 @@ class _HowToPlayDialog extends StatelessWidget {
               _Section(
                 icon: Icons.card_giftcard_rounded,
                 title: '补给',
-                lines: supplyHints(),
+                lines: [...supplyHints(), dropHint()],
               ),
               _Section(
                 icon: Icons.bolt_rounded,

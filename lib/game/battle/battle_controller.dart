@@ -32,6 +32,7 @@ class BattleController extends ChangeNotifier {
        _seed = seed,
        _rng = math.Random(seed),
        _starRng = math.Random(seed ^ 0x5F3759DF),
+       _dropRng = math.Random(seed ^ 0x2545F491),
        _director = WaveDirector(seed: seed) {
     _effects = BattleEffects(_rng, _starRng);
     player = Player(
@@ -54,6 +55,11 @@ class BattleController extends ChangeNotifier {
   final int _seed;
   final math.Random _rng;
   final math.Random _starRng;
+
+  /// 掉落专用随机源：与特效共用一条随机流时，粒子上限、爆炸数量等纯视觉
+  /// 差异会推移随机序列，让同一局在不同平台上的掉落结果跑偏。
+  final math.Random _dropRng;
+
   late final BattleEffects _effects;
   WaveDirector _director;
 
@@ -92,6 +98,9 @@ class BattleController extends ChangeNotifier {
   /// 单局最高连击与击破 Boss 数，结算时写入累计战绩与成就。
   int maxCombo = 0;
   int bossKills = 0;
+
+  /// 本局掉落的补给件数：结算写入日志，便于核对各端补给节奏是否一致。
+  int drops = 0;
 
   double shake = 0;
   double flash = 0;
@@ -152,6 +161,7 @@ class BattleController extends ChangeNotifier {
     comboTimer = 0;
     maxCombo = 0;
     bossKills = 0;
+    drops = 0;
     shake = 0;
     flash = 0;
     elapsed = 0;
@@ -529,16 +539,19 @@ class BattleController extends ChangeNotifier {
       notifyListeners();
     } else {
       _emit(big ? BattleEvent.bigExplosion : BattleEvent.explosion);
-      // 连续多架未掉落时强制补给一次，避免整局拿不到火力升级。
-      final dropChance = (enemy.spec.dropChance * challengeModifier.dropScale)
-          .clamp(0.0, 1.0);
+      // 连续多架未掉落时提高掉率，并在干涸到上限后强制补给一次，
+      // 避免整波、整局拿不到火力升级。
+      final baseChance =
+          enemy.spec.dropChance * challengeModifier.dropScale;
+      final dryStreak = _dropPity + 1;
       final drop =
-          _rng.nextDouble() < dropChance || _dropPity >= kDropPityLimit;
+          _dropRng.nextDouble() < dropChanceWithLuck(baseChance, _dropPity) ||
+          dryStreak >= kDropPityLimit;
       if (drop) {
         _dropAt(enemy.x, enemy.y);
         _dropPity = 0;
       } else {
-        _dropPity++;
+        _dropPity = dryStreak;
       }
     }
   }
@@ -578,7 +591,8 @@ class BattleController extends ChangeNotifier {
   }
 
   void _dropAt(double x, double y) {
-    final kind = powerUpKindForRoll(_rng.nextDouble());
+    final kind = powerUpKindForRoll(_dropRng.nextDouble());
+    drops++;
     powerUps.add(
       PowerUp(
         x: clampDouble(x, kEnemySideMargin, _size.width - kEnemySideMargin),
