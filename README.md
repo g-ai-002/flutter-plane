@@ -4,7 +4,7 @@
 覆盖 **Android / Windows / Web**，完全本地运行，无需联网。
 
 - 🎮 在线试玩：<http://192.168.31.120:8040/GTech/flutter-plane/>
-- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.4.6>
+- ⬇️ 下载 Android APK / Windows ZIP：<http://192.168.31.120:3020/GTech/flutter-plane/releases/tag/v0.4.7>
 
 ## 特色
 
@@ -62,7 +62,7 @@
 
 - Flutter 3.50.0 + Flame 1.38.2
 - 状态：Provider；本地存储：shared_preferences
-- 音频：flutter_soloud（播放运行时合成的 WAV）
+- 音频：flutter_soloud 5.3.0（播放运行时合成的 WAV）
 - 桌面窗口：window_manager；Web 中文字体：soup_fonts
 
 ## 开发
@@ -77,7 +77,7 @@ flutter run -d windows
 flutter run -d chrome
 ```
 
-当前包含 283 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制与固定样式槽位、视口裁剪、
+当前包含 285 项单元与组件测试，覆盖战斗流程、弹道、碰撞、特效、批绘制与固定样式槽位、视口裁剪、
 僚机、三形态 Boss、波次、HUD 刷新与竖排布局、拾取规则、掉落随机与软保底、每日挑战、成就判定、
 页面外壳、沉浸式全屏与三端界面。
 
@@ -115,9 +115,9 @@ test/                           单元测试与组件测试
 构建全部在 CI 完成。推送 Tag 不会自动出包，需要在 Actions 中手动运行 `build.yml` 并选定该 Tag：
 
 ```shell
-git tag -a v0.4.6 -m "v0.4.6: 首页徽标重绘隔离与弹幕固定样式槽位"
-git push origin v0.4.6
-tea actions workflows dispatch build.yml --ref refs/tags/v0.4.6 --follow
+git tag -a v0.4.7 -m "v0.4.7: 升级 flutter_soloud 至 5.3.0"
+git push origin v0.4.7
+tea actions workflows dispatch build.yml --ref refs/tags/v0.4.7 --follow
 ```
 
 产物包含 Android APK（aarch64）、Windows ZIP（x86_64）与 Web 压缩包，并发布到 Releases 与 Pages。
@@ -126,13 +126,14 @@ tea actions workflows dispatch build.yml --ref refs/tags/v0.4.6 --follow
 
 | 版本 | 说明 |
 | --- | --- |
+| v0.4.7 | 依赖版本：flutter_soloud 升级到 5.3.0，跟进 SIMD 混音与内存安全修复，玩法不变 |
 | v0.4.6 | 性能版本：首页徽标重绘隔离与绘制资源复用，弹幕固定样式槽位，满屏战场省略背景层 |
 | v0.4.5 | 修复版本：补给掉落改用独立随机源并加入软保底，各端补给节奏一致；首页沉浸式全屏 |
 | v0.4.4 | 修复版本：数量提示沿左边缘竖排，Boss 血条改为右侧小血条，屏幕中线不再被遮挡 |
 | v0.4.3 | 修复版本：Boss 血条随 Boss 出现即时显示，紧凑 HUD 拉开得分与状态条间距 |
-| v0.4.2 | 修复版本：战场上下铺满屏幕边缘，满屏时去掉外框，增强沉浸感 |
 
 | 更早版本 | 说明 |
 | --- | --- |
+| v0.4.2 | 修复版本：战场上下铺满屏幕边缘，满屏时去掉外框，增强沉浸感 |
 | v0.4.1 | 重构版本：二级页面外壳、内容卡片、统计条、偏好读写与日期解析收敛到单一出处 |
 | v0.4.0 及更早 | 内容、重构与性能版本：每日挑战与 13 项成就、弹幕批绘制与视口裁剪、僚机护航与幽影方舟 Boss、完整战斗循环与三端发布 |
